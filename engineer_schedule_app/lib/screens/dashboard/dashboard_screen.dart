@@ -286,48 +286,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               const SizedBox(width: 4),
             ],
-            // Top Tab Navigation Bar: Administrators see Schedule, My Zonal, Admin Menu
-            bottom: auth.isAdmin
-                ? PreferredSize(
-                    preferredSize: const Size.fromHeight(46),
-                    child: Container(
-                      decoration: const BoxDecoration(
-                        color: AppColors.primaryDark,
-                        border: Border(
-                          top: BorderSide(
-                            color: Color(0x33FFFFFF),
-                            width: 0.8,
-                          ),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          _buildTopTabItem(
-                            icon: Icons.calendar_today_rounded,
-                            label: 'Schedule',
-                            isSelected: _mainMenu == MainMenu.schedule,
-                            onTap: () =>
-                                setState(() => _mainMenu = MainMenu.schedule),
-                          ),
-                          _buildTopTabItem(
-                            icon: Icons.store_mall_directory_rounded,
-                            label: 'My Zonal',
-                            isSelected: _mainMenu == MainMenu.myZonal,
-                            onTap: () =>
-                                setState(() => _mainMenu = MainMenu.myZonal),
-                          ),
-                          _buildTopTabItem(
-                            icon: Icons.admin_panel_settings_rounded,
-                            label: 'Admin Menu',
-                            isSelected: _mainMenu == MainMenu.admin,
-                            onTap: () =>
-                                setState(() => _mainMenu = MainMenu.admin),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                : null,
           ),
           drawer: _buildDrawer(context, auth),
           body: _buildBodyContent(auth, schedule),
@@ -355,56 +313,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
               : null,
         );
       },
-    );
-  }
-
-  Widget _buildTopTabItem({
-    required IconData icon,
-    required String label,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    return Expanded(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          child: Container(
-            height: 46,
-            decoration: BoxDecoration(
-              border: Border(
-                bottom: BorderSide(
-                  color: isSelected ? AppColors.accentLight : Colors.transparent,
-                  width: 3.5,
-                ),
-              ),
-              color: isSelected
-                  ? Colors.white.withValues(alpha: 0.14)
-                  : Colors.transparent,
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  icon,
-                  size: 17,
-                  color: isSelected ? Colors.white : Colors.white70,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                    color: isSelected ? Colors.white : Colors.white70,
-                    letterSpacing: 0.3,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 
