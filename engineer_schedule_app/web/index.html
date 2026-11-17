@@ -3,16 +3,23 @@
 <head>
   <base href="$FLUTTER_BASE_HREF">
   <script>
-    // Dynamically set base href for GitHub Pages or custom domain hosting if needed
-    if (!document.querySelector('base')) {
-      var baseTag = document.createElement('base');
+    (function() {
+      var base = document.querySelector('base');
       var path = window.location.pathname;
       if (!path.endsWith('/')) {
         path = path.substring(0, path.lastIndexOf('/') + 1);
       }
-      baseTag.href = path;
-      document.head.appendChild(baseTag);
-    }
+      if (base) {
+        var href = base.getAttribute('href');
+        if ((!href || href === '/' || href === '$FLUTTER_BASE_HREF') && path !== '/') {
+          base.setAttribute('href', path);
+        }
+      } else {
+        var baseTag = document.createElement('base');
+        baseTag.setAttribute('href', path);
+        document.head.appendChild(baseTag);
+      }
+    })();
   </script>
 
   <meta charset="UTF-8">

@@ -36,7 +36,7 @@ jobs:
 
       - name: Build Web Application
         working-directory: ./engineer_schedule_app
-        run: flutter build web --release --no-version-check --suppress-analytics
+        run: flutter build web --release --base-href "/afi/" --no-version-check --suppress-analytics
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

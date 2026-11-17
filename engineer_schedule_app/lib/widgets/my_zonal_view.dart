@@ -649,61 +649,22 @@ class _MaintenanceDashboardState extends State<_MaintenanceDashboard> {
             ),
           ),
 
-          if (item.actionTaken != null && item.actionTaken!.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Container(
-              padding: const EdgeInsets.all(7),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceSilver,
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.flash_on, size: 14, color: AppColors.accent),
-                  const SizedBox(width: 5),
-                  Expanded(
-                    child: Text(
-                      'Action: ${item.actionTaken}',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: AppColors.primaryDark,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-
           const SizedBox(height: 8),
           const Divider(height: 1, color: AppColors.silverLight),
           const SizedBox(height: 8),
 
-          // Bottom Bar: Meta info & 1-Click Status Cycling Button
+          // Bottom Bar: Status label & 1-Click Status Cycling Button
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              if (item.vendor != null && item.vendor!.isNotEmpty) ...[
-                const Icon(Icons.business, size: 13, color: AppColors.silverDark),
-                const SizedBox(width: 4),
-                Flexible(
-                  child: Text(
-                    item.vendor!,
-                    style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                    overflow: TextOverflow.ellipsis,
-                  ),
+              const Text(
+                'Status:',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textSecondary,
                 ),
-                const SizedBox(width: 8),
-              ],
-              const Icon(Icons.calendar_today, size: 12, color: AppColors.silverDark),
-              const SizedBox(width: 4),
-              Text(
-                item.dueDate != null
-                    ? DateFormat('dd MMM').format(item.dueDate!)
-                    : 'Ongoing',
-                style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
               ),
-              const Spacer(),
 
               // Quick 1-Click Status Cycling Pill Button
               InkWell(
@@ -749,9 +710,6 @@ class _MaintenanceDashboardState extends State<_MaintenanceDashboard> {
     final equipCtrl = TextEditingController();
     final catCtrl = TextEditingController(text: 'Forecourt & Dispensing');
     final probCtrl = TextEditingController();
-    final vendorCtrl = TextEditingController();
-    final reportedCtrl = TextEditingController(text: 'Site Supervisor');
-    final actionCtrl = TextEditingController();
 
     showDialog(
       context: context,
@@ -806,16 +764,6 @@ class _MaintenanceDashboardState extends State<_MaintenanceDashboard> {
                     maxLines: 2,
                     validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
                   ),
-                  const SizedBox(height: 10),
-                  TextFormField(
-                    controller: vendorCtrl,
-                    decoration: const InputDecoration(labelText: 'Vendor / Contractor'),
-                  ),
-                  const SizedBox(height: 10),
-                  TextFormField(
-                    controller: actionCtrl,
-                    decoration: const InputDecoration(labelText: 'Action Taken / Planned'),
-                  ),
                 ],
               ),
             ),
@@ -834,10 +782,23 @@ class _MaintenanceDashboardState extends State<_MaintenanceDashboard> {
                   'category': catCtrl.text.trim(),
                   'problem': probCtrl.text.trim(),
                   'priority': selectedPriority,
-                  'vendor': vendorCtrl.text.trim().isNotEmpty ? vendorCtrl.text.trim() : null,
-                  'reported_by': reportedCtrl.text.trim(),
-                  'action_taken': actionCtrl.text.trim().isNotEmpty ? actionCtrl.text.trim() : null,
                   'status': 'Pending',
+                });
+                if (context.mounted) Navigator.of(ctx).pop();
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed: $e'), backgroundColor: AppColors.error),
+                  );
+                }
+              }
+            },
+            child: const Text('Save Complaint'),
+          ),
+        ],
+      ),
+    );
+  }
                 });
                 if (context.mounted) Navigator.of(ctx).pop();
               } catch (e) {

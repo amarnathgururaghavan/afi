@@ -147,14 +147,10 @@ class ZonalProvider extends ChangeNotifier {
         final matchEquipment = c.equipment.toLowerCase().contains(q);
         final matchCategory = c.category.toLowerCase().contains(q);
         final matchProblem = c.problem.toLowerCase().contains(q);
-        final matchVendor = c.vendor?.toLowerCase().contains(q) ?? false;
-        final matchReportedBy = c.reportedBy?.toLowerCase().contains(q) ?? false;
         final matchId = c.id.toLowerCase().contains(q);
         if (!matchEquipment &&
             !matchCategory &&
             !matchProblem &&
-            !matchVendor &&
-            !matchReportedBy &&
             !matchId) {
           return false;
         }

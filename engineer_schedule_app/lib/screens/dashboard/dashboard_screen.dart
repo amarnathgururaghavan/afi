@@ -17,12 +17,16 @@ import 'package:engineer_schedule_app/widgets/my_zonal_view.dart';
 import 'package:engineer_schedule_app/widgets/user_management_view.dart';
 import 'package:engineer_schedule_app/widgets/weekly_view.dart';
 
-/// Describes the view modes available via the dashboard menu.
-enum _ViewMode { weekly, monthly, all, myZonal, userManagement }
+/// The 3 primary menus of the application:
+/// 1. Schedule (Weekly, Monthly, All)
+/// 2. My Zonal (Maintenance Complaints, Cash Checking)
+/// 3. Admin Menu (User Management)
+enum MainMenu { schedule, myZonal, admin }
 
-/// Main dashboard screen showing engineer work schedules in either a weekly
-/// or monthly view, with admin-only filters, CRUD controls, and high-res
-/// screenshot sharing.
+/// Sub-tabs for Menu 1: Schedule.
+enum ScheduleSubTab { weekly, monthly, all }
+
+/// Main dashboard screen structured strictly around the 3 primary menus.
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
@@ -31,7 +35,8 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  _ViewMode _viewMode = _ViewMode.weekly;
+  MainMenu _mainMenu = MainMenu.schedule;
+  ScheduleSubTab _scheduleSubTab = ScheduleSubTab.weekly;
   bool _isSharing = false;
   final ScreenshotController _screenshotController = ScreenshotController();
 
@@ -84,7 +89,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
 
       final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
-      final viewLabel = _viewMode == _ViewMode.weekly ? 'weekly' : 'monthly';
+      final viewLabel =
+          _scheduleSubTab == ScheduleSubTab.weekly ? 'weekly' : 'monthly';
       final fileName = 'engineer_schedule_${viewLabel}_$timestamp.png';
 
       await saveOrShareImage(
@@ -158,23 +164,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ? auth.profile!.fullName
             : (auth.profile?.email ?? '');
 
+        final bool canShare = _mainMenu == MainMenu.schedule &&
+            (_scheduleSubTab == ScheduleSubTab.weekly ||
+                _scheduleSubTab == ScheduleSubTab.monthly);
+
         return Scaffold(
           appBar: AppBar(
             titleSpacing: 0,
-            leading: _viewMode != _ViewMode.weekly
-                ? IconButton(
-                    icon: const Icon(Icons.arrow_back_rounded),
-                    tooltip: 'Back to Weekly View',
-                    onPressed: () =>
-                        setState(() => _viewMode = _ViewMode.weekly),
-                  )
-                : Builder(
-                    builder: (ctx) => IconButton(
-                      icon: const Icon(Icons.menu_rounded),
-                      tooltip: 'Open Menu',
-                      onPressed: () => Scaffold.of(ctx).openDrawer(),
-                    ),
-                  ),
+            leading: Builder(
+              builder: (ctx) => IconButton(
+                icon: const Icon(Icons.menu_rounded),
+                tooltip: 'Open Menu',
+                onPressed: () => Scaffold.of(ctx).openDrawer(),
+              ),
+            ),
             title: Row(
               children: [
                 Container(
@@ -225,9 +228,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                       if (displayName.isNotEmpty)
                         Text(
-                          _viewMode == _ViewMode.weekly
-                              ? '${auth.isAdmin ? 'Admin' : 'Engineer'} • $displayName'
-                              : _getViewTitle(auth.isAdmin),
+                          _getViewTitle(auth.isAdmin),
                           style: const TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w400,
@@ -250,24 +251,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 tooltip: 'Refresh Schedules',
                 onPressed: schedule.isLoading ? null : _loadSchedules,
               ),
-              IconButton(
-                visualDensity: VisualDensity.compact,
-                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                padding: const EdgeInsets.all(6),
-                icon: _isSharing
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Icon(Icons.share_outlined, size: 22),
-                tooltip: 'Share Schedule',
-                onPressed:
-                    (schedule.isLoading || _isSharing) ? null : _captureAndShare,
-              ),
+              if (canShare)
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  constraints:
+                      const BoxConstraints(minWidth: 36, minHeight: 36),
+                  padding: const EdgeInsets.all(6),
+                  icon: _isSharing
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.share_outlined, size: 22),
+                  tooltip: 'Share Schedule',
+                  onPressed:
+                      (schedule.isLoading || _isSharing) ? null : _captureAndShare,
+                ),
               IconButton(
                 visualDensity: VisualDensity.compact,
                 constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
@@ -280,38 +283,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ],
           ),
           drawer: _buildDrawer(context, auth),
-          body: Column(
-            children: [
-              // Admin-only filter bar (available on Monthly view)
-              if (auth.isAdmin && _viewMode == _ViewMode.monthly)
-                const FilterBar(),
+          body: _buildBodyContent(auth, schedule),
 
-              // Schedule content area (wrapped for screenshot capture)
-              Expanded(
-                child: schedule.isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : schedule.error != null
-                        ? _buildErrorView(schedule.error!)
-                        : Screenshot(
-                            controller: _screenshotController,
-                            child: Container(
-                              color: AppColors.background,
-                              child: Column(
-                                children: [
-                                  _buildCaptureBanner(auth, schedule),
-                                  Expanded(
-                                    child: _buildCurrentView(),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-              ),
-            ],
-          ),
-
-          // ── Floating Action Button: Add Schedule (Available in All view for both Admin & Engineer) ─
-          floatingActionButton: _viewMode == _ViewMode.all
+          // Floating Action Button: Add Schedule (shown only in Schedule > All Schedules)
+          floatingActionButton: (_mainMenu == MainMenu.schedule &&
+                  _scheduleSubTab == ScheduleSubTab.all)
               ? FloatingActionButton.extended(
                   heroTag: 'fab_add_schedule_action',
                   onPressed: () async {
@@ -331,51 +307,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 )
               : null,
 
-          // ── Bottom Navigation Bar: Instant 1-Tap Switching (Weekly, Monthly, All, My Zonal) ─
+          // ── EXACTLY 3 MAIN MENUS: 1. Schedule | 2. My Zonal | 3. Admin Menu ──
           bottomNavigationBar: NavigationBar(
-            selectedIndex: _getNavIndex(),
+            selectedIndex: _mainMenu.index,
             height: 64,
             elevation: 3,
             backgroundColor: Colors.white,
             indicatorColor: AppColors.forestMint,
             onDestinationSelected: (idx) {
               setState(() {
-                switch (idx) {
-                  case 0:
-                    _viewMode = _ViewMode.weekly;
-                    break;
-                  case 1:
-                    _viewMode = _ViewMode.monthly;
-                    break;
-                  case 2:
-                    _viewMode = _ViewMode.all;
-                    break;
-                  case 3:
-                    _viewMode = _ViewMode.myZonal;
-                    break;
-                }
+                _mainMenu = MainMenu.values[idx];
               });
             },
             destinations: [
               const NavigationDestination(
-                icon: Icon(Icons.view_week_outlined),
-                selectedIcon: Icon(Icons.view_week_rounded, color: AppColors.primary),
-                label: 'Weekly',
-              ),
-              const NavigationDestination(
-                icon: Icon(Icons.calendar_month_outlined),
-                selectedIcon: Icon(Icons.calendar_month_rounded, color: AppColors.primary),
-                label: 'Monthly',
-              ),
-              NavigationDestination(
-                icon: const Icon(Icons.table_rows_outlined),
-                selectedIcon: const Icon(Icons.table_rows_rounded, color: AppColors.primary),
-                label: auth.isAdmin ? 'All' : 'My Schedules',
+                icon: Icon(Icons.calendar_today_outlined),
+                selectedIcon:
+                    Icon(Icons.calendar_today_rounded, color: AppColors.primary),
+                label: '1. Schedule',
               ),
               const NavigationDestination(
                 icon: Icon(Icons.store_mall_directory_outlined),
-                selectedIcon: Icon(Icons.store_mall_directory_rounded, color: AppColors.primary),
-                label: 'My Zonal',
+                selectedIcon: Icon(Icons.store_mall_directory_rounded,
+                    color: AppColors.primary),
+                label: '2. My Zonal',
+              ),
+              const NavigationDestination(
+                icon: Icon(Icons.admin_panel_settings_outlined),
+                selectedIcon: Icon(Icons.admin_panel_settings_rounded,
+                    color: AppColors.primary),
+                label: '3. Admin Menu',
               ),
             ],
           ),
@@ -385,36 +346,146 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   String _getViewTitle(bool isAdmin) {
-    switch (_viewMode) {
-      case _ViewMode.weekly:
-        return 'Weekly View';
-      case _ViewMode.monthly:
-        return 'Monthly Calendar';
-      case _ViewMode.all:
-        return isAdmin ? 'All Schedules' : 'My Schedules';
-      case _ViewMode.myZonal:
-        return 'My Zonal (Outlets & Cash)';
-      case _ViewMode.userManagement:
-        return 'User Management';
+    switch (_mainMenu) {
+      case MainMenu.schedule:
+        switch (_scheduleSubTab) {
+          case ScheduleSubTab.weekly:
+            return '1. Schedule • Weekly View';
+          case ScheduleSubTab.monthly:
+            return '1. Schedule • Monthly View';
+          case ScheduleSubTab.all:
+            return isAdmin
+                ? '1. Schedule • All Schedules'
+                : '1. Schedule • My Schedules';
+        }
+      case MainMenu.myZonal:
+        return '2. My Zonal (Complaints & Cash)';
+      case MainMenu.admin:
+        return '3. Admin Menu • User Management';
     }
   }
 
-  int _getNavIndex() {
-    switch (_viewMode) {
-      case _ViewMode.weekly:
-        return 0;
-      case _ViewMode.monthly:
-        return 1;
-      case _ViewMode.all:
-        return 2;
-      case _ViewMode.myZonal:
-        return 3;
-      case _ViewMode.userManagement:
-        return 0;
+  /// Builds the main body content based on the selected Menu.
+  Widget _buildBodyContent(AuthProvider auth, ScheduleProvider schedule) {
+    switch (_mainMenu) {
+      case MainMenu.schedule:
+        return Column(
+          children: [
+            // Sub-tabs for Schedule: Weekly, Monthly, All
+            Container(
+              color: AppColors.surface,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: SegmentedButton<ScheduleSubTab>(
+                      segments: [
+                        const ButtonSegment(
+                          value: ScheduleSubTab.weekly,
+                          label: Text('Weekly',
+                              style: TextStyle(
+                                  fontSize: 12, fontWeight: FontWeight.w700)),
+                          icon: Icon(Icons.view_week_rounded, size: 18),
+                        ),
+                        const ButtonSegment(
+                          value: ScheduleSubTab.monthly,
+                          label: Text('Monthly',
+                              style: TextStyle(
+                                  fontSize: 12, fontWeight: FontWeight.w700)),
+                          icon: Icon(Icons.calendar_month_rounded, size: 18),
+                        ),
+                        ButtonSegment(
+                          value: ScheduleSubTab.all,
+                          label: Text(
+                              auth.isAdmin ? 'All Schedules' : 'My Schedules',
+                              style: const TextStyle(
+                                  fontSize: 12, fontWeight: FontWeight.w700)),
+                          icon: const Icon(Icons.table_rows_rounded, size: 18),
+                        ),
+                      ],
+                      selected: {_scheduleSubTab},
+                      onSelectionChanged: (set) {
+                        setState(() => _scheduleSubTab = set.first);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Admin Filter Bar on Monthly View
+            if (auth.isAdmin && _scheduleSubTab == ScheduleSubTab.monthly)
+              const FilterBar(),
+
+            // Schedule View with Screenshot wrapper
+            Expanded(
+              child: schedule.isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : schedule.error != null
+                      ? _buildErrorView(schedule.error!)
+                      : Screenshot(
+                          controller: _screenshotController,
+                          child: Container(
+                            color: AppColors.background,
+                            child: Column(
+                              children: [
+                                _buildCaptureBanner(auth, schedule),
+                                Expanded(child: _buildActiveScheduleSubView()),
+                              ],
+                            ),
+                          ),
+                        ),
+            ),
+          ],
+        );
+
+      case MainMenu.myZonal:
+        return const MyZonalView();
+
+      case MainMenu.admin:
+        if (auth.isAdmin) {
+          return const UserManagementView();
+        } else {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.admin_panel_settings_outlined,
+                      size: 64, color: AppColors.silverDark),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Administrator Access Required',
+                    style: AppTextStyles.heading3,
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'User Management is restricted to company administrators.\nPlease contact an administrator if you require access.',
+                    style: AppTextStyles.bodySmall,
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
     }
   }
 
-  /// Modern navigation drawer with company branding and Admin Menu.
+  /// Builds the active sub-view for Menu 1 (Schedule).
+  Widget _buildActiveScheduleSubView() {
+    switch (_scheduleSubTab) {
+      case ScheduleSubTab.weekly:
+        return const WeeklyView();
+      case ScheduleSubTab.monthly:
+        return const MonthlyView();
+      case ScheduleSubTab.all:
+        return const AllSchedulesView();
+    }
+  }
+
+  /// Modern navigation drawer with company branding strictly grouped into the 3 menus.
   Widget _buildDrawer(BuildContext context, AuthProvider auth) {
     final displayName = auth.profile?.fullName.isNotEmpty == true
         ? auth.profile!.fullName
@@ -566,30 +637,51 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
 
-          // Drawer Navigation Items
+          // Drawer Navigation Items: EXACTLY 3 MENUS
           Expanded(
             child: ListView(
               padding:
                   const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
               children: [
+                // ── MENU 1. SCHEDULE ─────────────────────────────────────────
+                const Padding(
+                  padding: EdgeInsets.only(left: 14, bottom: 4, top: 4),
+                  child: Text(
+                    '1. SCHEDULE',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.silverDark,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                ),
                 _buildDrawerItem(
                   icon: Icons.view_week_rounded,
                   title: 'Weekly View',
                   subtitle: 'Tentative weekly schedule',
-                  isSelected: _viewMode == _ViewMode.weekly,
+                  isSelected: _mainMenu == MainMenu.schedule &&
+                      _scheduleSubTab == ScheduleSubTab.weekly,
                   onTap: () {
                     Navigator.of(context).pop();
-                    setState(() => _viewMode = _ViewMode.weekly);
+                    setState(() {
+                      _mainMenu = MainMenu.schedule;
+                      _scheduleSubTab = ScheduleSubTab.weekly;
+                    });
                   },
                 ),
                 _buildDrawerItem(
                   icon: Icons.calendar_month_rounded,
                   title: 'Monthly View',
                   subtitle: 'Full month calendar',
-                  isSelected: _viewMode == _ViewMode.monthly,
+                  isSelected: _mainMenu == MainMenu.schedule &&
+                      _scheduleSubTab == ScheduleSubTab.monthly,
                   onTap: () {
                     Navigator.of(context).pop();
-                    setState(() => _viewMode = _ViewMode.monthly);
+                    setState(() {
+                      _mainMenu = MainMenu.schedule;
+                      _scheduleSubTab = ScheduleSubTab.monthly;
+                    });
                   },
                 ),
                 _buildDrawerItem(
@@ -598,52 +690,74 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   subtitle: auth.isAdmin
                       ? 'Full database & filters'
                       : 'My scheduled site visits',
-                  isSelected: _viewMode == _ViewMode.all,
+                  isSelected: _mainMenu == MainMenu.schedule &&
+                      _scheduleSubTab == ScheduleSubTab.all,
                   onTap: () {
                     Navigator.of(context).pop();
-                    setState(() => _viewMode = _ViewMode.all);
+                    setState(() {
+                      _mainMenu = MainMenu.schedule;
+                      _scheduleSubTab = ScheduleSubTab.all;
+                    });
                   },
+                ),
+
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  child: Divider(color: AppColors.silverLight),
+                ),
+
+                // ── MENU 2. MY ZONAL ─────────────────────────────────────────
+                const Padding(
+                  padding: EdgeInsets.only(left: 14, bottom: 4),
+                  child: Text(
+                    '2. MY ZONAL',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.silverDark,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
                 ),
                 _buildDrawerItem(
                   icon: Icons.store_mall_directory_rounded,
                   title: 'My Zonal',
-                  subtitle: 'Retail Outlets, Complaints & Cash',
-                  isSelected: _viewMode == _ViewMode.myZonal,
+                  subtitle: 'Complaints (OWP, TPT, WIM) & Cash Checking',
+                  isSelected: _mainMenu == MainMenu.myZonal,
                   onTap: () {
                     Navigator.of(context).pop();
-                    setState(() => _viewMode = _ViewMode.myZonal);
+                    setState(() => _mainMenu = MainMenu.myZonal);
                   },
                 ),
-                if (auth.isAdmin) ...[
-                  const Padding(
-                    padding:
-                        EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: Divider(color: AppColors.silverLight),
-                  ),
-                  const Padding(
-                    padding: EdgeInsets.only(left: 16, bottom: 4, top: 2),
-                    child: Text(
-                      'ADMIN MENU',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.silverDark,
-                        letterSpacing: 1.0,
-                      ),
+
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  child: Divider(color: AppColors.silverLight),
+                ),
+
+                // ── MENU 3. ADMIN MENU ───────────────────────────────────────
+                const Padding(
+                  padding: EdgeInsets.only(left: 14, bottom: 4),
+                  child: Text(
+                    '3. ADMIN MENU',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.silverDark,
+                      letterSpacing: 1.0,
                     ),
                   ),
-                  _buildDrawerItem(
-                    icon: Icons.manage_accounts_rounded,
-                    title: 'Manage Users',
-                    subtitle: 'Add / Delete users & engineers',
-                    isSelected: _viewMode == _ViewMode.userManagement,
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      setState(
-                          () => _viewMode = _ViewMode.userManagement);
-                    },
-                  ),
-                ],
+                ),
+                _buildDrawerItem(
+                  icon: Icons.manage_accounts_rounded,
+                  title: 'User Management',
+                  subtitle: 'Add / Delete users & engineers',
+                  isSelected: _mainMenu == MainMenu.admin,
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    setState(() => _mainMenu = MainMenu.admin);
+                  },
+                ),
               ],
             ),
           ),
@@ -714,26 +828,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  /// Builds the active view based on the selected mode.
-  Widget _buildCurrentView() {
-    switch (_viewMode) {
-      case _ViewMode.weekly:
-        return const WeeklyView();
-      case _ViewMode.monthly:
-        return const MonthlyView();
-      case _ViewMode.all:
-        return const AllSchedulesView();
-      case _ViewMode.myZonal:
-        return const MyZonalView();
-      case _ViewMode.userManagement:
-        return const UserManagementView();
-    }
-  }
-
   /// Context header included in the captured screenshot.
   Widget _buildCaptureBanner(AuthProvider auth, ScheduleProvider schedule) {
-    if (_viewMode == _ViewMode.weekly || _viewMode == _ViewMode.all) {
-      // In weekly and all modes, views render their own clean headers
+    if (_scheduleSubTab == ScheduleSubTab.weekly ||
+        _scheduleSubTab == ScheduleSubTab.all) {
       return const SizedBox.shrink();
     }
     final List<String> tags = [];
@@ -758,9 +856,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         children: [
           Flexible(
             child: Text(
-              tags.isEmpty
-                  ? 'Schedule Overview'
-                  : tags.join('  •  '),
+              tags.isEmpty ? 'Schedule Overview' : tags.join('  •  '),
               style: AppTextStyles.caption.copyWith(
                 color: AppColors.primaryDark,
                 fontWeight: FontWeight.w600,
