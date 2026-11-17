@@ -276,16 +276,51 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   onPressed:
                       (schedule.isLoading || _isSharing) ? null : _captureAndShare,
                 ),
-              IconButton(
-                visualDensity: VisualDensity.compact,
-                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                padding: const EdgeInsets.all(6),
-                icon: const Icon(Icons.logout, size: 22),
-                tooltip: 'Sign Out',
-                onPressed: _handleLogout,
-              ),
-              const SizedBox(width: 4),
+              const SizedBox(width: 8),
             ],
+            // In Schedule: 3 Top Tabs (Weekly, Monthly, All / My Schedules)
+            bottom: _mainMenu == MainMenu.schedule
+                ? PreferredSize(
+                    preferredSize: const Size.fromHeight(44),
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        color: AppColors.primaryDark,
+                        border: Border(
+                          top: BorderSide(
+                            color: Color(0x33FFFFFF),
+                            width: 0.8,
+                          ),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          _buildScheduleTopTab(
+                            icon: Icons.view_week_rounded,
+                            label: 'Weekly',
+                            isSelected: _scheduleSubTab == ScheduleSubTab.weekly,
+                            onTap: () => setState(
+                                () => _scheduleSubTab = ScheduleSubTab.weekly),
+                          ),
+                          _buildScheduleTopTab(
+                            icon: Icons.calendar_month_rounded,
+                            label: 'Monthly',
+                            isSelected:
+                                _scheduleSubTab == ScheduleSubTab.monthly,
+                            onTap: () => setState(
+                                () => _scheduleSubTab = ScheduleSubTab.monthly),
+                          ),
+                          _buildScheduleTopTab(
+                            icon: Icons.table_rows_rounded,
+                            label: auth.isAdmin ? 'All Schedules' : 'My Schedules',
+                            isSelected: _scheduleSubTab == ScheduleSubTab.all,
+                            onTap: () => setState(
+                                () => _scheduleSubTab = ScheduleSubTab.all),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : null,
           ),
           drawer: _buildDrawer(context, auth),
           body: _buildBodyContent(auth, schedule),
@@ -316,6 +351,56 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  Widget _buildScheduleTopTab({
+    required IconData icon,
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          child: Container(
+            height: 44,
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: isSelected ? AppColors.accentLight : Colors.transparent,
+                  width: 3.5,
+                ),
+              ),
+              color: isSelected
+                  ? Colors.white.withValues(alpha: 0.14)
+                  : Colors.transparent,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon,
+                  size: 17,
+                  color: isSelected ? Colors.white : Colors.white70,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                    color: isSelected ? Colors.white : Colors.white70,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   String _getViewTitle(bool isAdmin) {
     switch (_mainMenu) {
       case MainMenu.schedule:
@@ -330,7 +415,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 : 'Schedule • My Schedules';
         }
       case MainMenu.myZonal:
-        return 'My Zonal • Complaints & Cash';
+        return 'My Zonal • Complaints & Cash Checking';
       case MainMenu.admin:
         return 'Admin Menu • User Management';
     }
@@ -338,52 +423,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   /// Builds the main body content based on the selected Menu.
   Widget _buildBodyContent(AuthProvider auth, ScheduleProvider schedule) {
+    // Role protection
+    if (!auth.isAdmin && _mainMenu != MainMenu.schedule) {
+      _mainMenu = MainMenu.schedule;
+    }
+
     switch (_mainMenu) {
       case MainMenu.schedule:
         return Column(
           children: [
-            // Sub-tabs for Schedule: Weekly, Monthly, All
-            Container(
-              color: AppColors.surface,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: SegmentedButton<ScheduleSubTab>(
-                      segments: [
-                        const ButtonSegment(
-                          value: ScheduleSubTab.weekly,
-                          label: Text('Weekly',
-                              style: TextStyle(
-                                  fontSize: 12, fontWeight: FontWeight.w700)),
-                          icon: Icon(Icons.view_week_rounded, size: 18),
-                        ),
-                        const ButtonSegment(
-                          value: ScheduleSubTab.monthly,
-                          label: Text('Monthly',
-                              style: TextStyle(
-                                  fontSize: 12, fontWeight: FontWeight.w700)),
-                          icon: Icon(Icons.calendar_month_rounded, size: 18),
-                        ),
-                        ButtonSegment(
-                          value: ScheduleSubTab.all,
-                          label: Text(
-                              auth.isAdmin ? 'All Schedules' : 'My Schedules',
-                              style: const TextStyle(
-                                  fontSize: 12, fontWeight: FontWeight.w700)),
-                          icon: const Icon(Icons.table_rows_rounded, size: 18),
-                        ),
-                      ],
-                      selected: {_scheduleSubTab},
-                      onSelectionChanged: (set) {
-                        setState(() => _scheduleSubTab = set.first);
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
             // Admin Filter Bar on Monthly View
             if (auth.isAdmin && _scheduleSubTab == ScheduleSubTab.monthly)
               const FilterBar(),

@@ -63,7 +63,7 @@ class _MyZonalViewState extends State<MyZonalView>
                   ),
                   Tab(
                     icon: Icon(Icons.point_of_sale_rounded, size: 20),
-                    text: 'Cash Checking (4-Nozzle)',
+                    text: 'Cash Checking',
                   ),
                 ],
               ),
