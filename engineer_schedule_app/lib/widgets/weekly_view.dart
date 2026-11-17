@@ -129,24 +129,7 @@ class _WeeklyViewState extends State<WeeklyView> {
     final headerEnd = DateFormat('dd MMM, yyyy').format(weekDays.last);
     final weekRangeText = '$headerStart – $headerEnd';
 
-    // Determine which engineer name to show on the card
-    String activeEngineerName = '';
-    if (_selectedEngineerOverride != null) {
-      activeEngineerName = _selectedEngineerOverride!;
-    } else if (scheduleProvider.filterEngineerName != null &&
-        scheduleProvider.filterEngineerName!.isNotEmpty) {
-      activeEngineerName = scheduleProvider.filterEngineerName!;
-    } else if (authProvider.profile?.fullName.isNotEmpty == true && !isAdmin) {
-      activeEngineerName = authProvider.profile!.fullName;
-    } else if (scheduleProvider.uniqueEngineerNames.isNotEmpty) {
-      activeEngineerName = scheduleProvider.uniqueEngineerNames.first;
-    } else if (authProvider.profile?.fullName.isNotEmpty == true) {
-      activeEngineerName = authProvider.profile!.fullName;
-    } else {
-      activeEngineerName = 'Amarnath Guru G R';
-    }
-
-    // Schedules for this week for the active engineer
+    // Schedules for this week
     final startOfWeek = DateTime(monday.year, monday.month, monday.day);
     final endOfWeek = startOfWeek.add(
       const Duration(days: 6, hours: 23, minutes: 59, seconds: 59),
@@ -157,10 +140,42 @@ class _WeeklyViewState extends State<WeeklyView> {
           !s.scheduleDate.isAfter(endOfWeek);
     }).toList();
 
-    final engineerSchedules = weekSchedules.where((s) {
-      return s.engineerName.trim().toLowerCase() ==
-          activeEngineerName.trim().toLowerCase();
-    }).toList();
+    // Determine which engineer name to show on the card and filter schedules
+    String activeEngineerName = '';
+    final List<ScheduleModel> engineerSchedules;
+
+    if (!isAdmin) {
+      // Non-admins see ONLY their own data.
+      // All loaded weekSchedules belong exclusively to this user.
+      engineerSchedules = weekSchedules;
+      if (authProvider.profile?.fullName.isNotEmpty == true) {
+        activeEngineerName = authProvider.profile!.fullName;
+      } else if (weekSchedules.isNotEmpty &&
+          weekSchedules.first.engineerName.isNotEmpty) {
+        activeEngineerName = weekSchedules.first.engineerName;
+      } else {
+        activeEngineerName = 'My Schedule';
+      }
+    } else {
+      // Admin sees all engineers and can switch between them.
+      if (_selectedEngineerOverride != null) {
+        activeEngineerName = _selectedEngineerOverride!;
+      } else if (scheduleProvider.filterEngineerName != null &&
+          scheduleProvider.filterEngineerName!.isNotEmpty) {
+        activeEngineerName = scheduleProvider.filterEngineerName!;
+      } else if (scheduleProvider.uniqueEngineerNames.isNotEmpty) {
+        activeEngineerName = scheduleProvider.uniqueEngineerNames.first;
+      } else if (authProvider.profile?.fullName.isNotEmpty == true) {
+        activeEngineerName = authProvider.profile!.fullName;
+      } else {
+        activeEngineerName = 'Amarnath Guru G R';
+      }
+
+      engineerSchedules = weekSchedules.where((s) {
+        return s.engineerName.trim().toLowerCase() ==
+            activeEngineerName.trim().toLowerCase();
+      }).toList();
+    }
 
     // Available engineers in system
     final availableEngineers = scheduleProvider.uniqueEngineerNames.toList();

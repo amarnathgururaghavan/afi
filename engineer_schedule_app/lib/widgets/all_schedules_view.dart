@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../models/schedule_model.dart';
+import '../providers/auth_provider.dart';
 import '../providers/schedule_provider.dart';
 import '../screens/dashboard/add_schedule_screen.dart';
 import '../utils/constants.dart';
@@ -110,6 +111,8 @@ class _AllSchedulesViewState extends State<AllSchedulesView> {
   @override
   Widget build(BuildContext context) {
     final scheduleProvider = context.watch<ScheduleProvider>();
+    final authProvider = context.watch<AuthProvider>();
+    final isAdmin = authProvider.isAdmin;
 
     // Filter schedules based on search query, engineer, and site
     final allSchedules = List<ScheduleModel>.from(scheduleProvider.schedules);
@@ -167,9 +170,9 @@ class _AllSchedulesViewState extends State<AllSchedulesView> {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text(
-                        'All Schedules',
-                        style: TextStyle(
+                      Text(
+                        isAdmin ? 'All Schedules' : 'My Schedules',
+                        style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
                           color: AppColors.primary,
@@ -368,8 +371,8 @@ class _AllSchedulesViewState extends State<AllSchedulesView> {
                 ],
               ),
 
-              // Row 3: Quick Filter Chips (Engineer filter if multiple)
-              if (uniqueEngineers.length > 1) ...[
+              // Row 3: Quick Filter Chips (Engineer filter if multiple - Admin only)
+              if (isAdmin && uniqueEngineers.length > 1) ...[
                 const SizedBox(height: 8),
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
@@ -449,6 +452,7 @@ class _AllSchedulesViewState extends State<AllSchedulesView> {
                   context,
                   filtered,
                   scheduleProvider,
+                  isAdmin,
                 ),
         ),
       ],
@@ -460,6 +464,7 @@ class _AllSchedulesViewState extends State<AllSchedulesView> {
     BuildContext context,
     List<ScheduleModel> schedules,
     ScheduleProvider scheduleProvider,
+    bool isAdmin,
   ) {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -493,9 +498,9 @@ class _AllSchedulesViewState extends State<AllSchedulesView> {
                       dataRowMaxHeight: 58,
                       horizontalMargin: 16,
                       columnSpacing: 20,
-                      columns: const [
+                      columns: [
                         // Column 1: NAME
-                        DataColumn(
+                        const DataColumn(
                           label: Row(
                             children: [
                               Icon(
@@ -516,7 +521,7 @@ class _AllSchedulesViewState extends State<AllSchedulesView> {
                         ),
 
                         // Column 2: DATE
-                        DataColumn(
+                        const DataColumn(
                           label: Row(
                             children: [
                               Icon(
@@ -537,7 +542,7 @@ class _AllSchedulesViewState extends State<AllSchedulesView> {
                         ),
 
                         // Column 3: SITE
-                        DataColumn(
+                        const DataColumn(
                           label: Row(
                             children: [
                               Icon(
@@ -557,26 +562,27 @@ class _AllSchedulesViewState extends State<AllSchedulesView> {
                           ),
                         ),
 
-                        // Column 4: ACTIONS (Edit & Delete exclusively here)
-                        DataColumn(
-                          label: Row(
-                            children: [
-                              Icon(
-                                Icons.settings_outlined,
-                                size: 18,
-                                color: AppColors.primary,
-                              ),
-                              SizedBox(width: 8),
-                              Text(
-                                'Actions',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.primaryDark,
+                        // Column 4: ACTIONS (Admin only)
+                        if (isAdmin)
+                          const DataColumn(
+                            label: Row(
+                              children: [
+                                Icon(
+                                  Icons.settings_outlined,
+                                  size: 18,
+                                  color: AppColors.primary,
                                 ),
-                              ),
-                            ],
+                                SizedBox(width: 8),
+                                Text(
+                                  'Actions',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.primaryDark,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
                       ],
                       rows: schedules.map((schedule) {
                         final initials = schedule.engineerName.isNotEmpty
@@ -689,42 +695,43 @@ class _AllSchedulesViewState extends State<AllSchedulesView> {
                               ),
                             ),
 
-                            // 4. ACTIONS Cell: EDIT & DELETE (Exclusively here)
-                            DataCell(
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  // Edit Button
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.edit_outlined,
-                                      size: 18,
-                                      color: AppColors.primary,
+                            // 4. ACTIONS Cell: EDIT & DELETE (Admin only)
+                            if (isAdmin)
+                              DataCell(
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    // Edit Button
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.edit_outlined,
+                                        size: 18,
+                                        color: AppColors.primary,
+                                      ),
+                                      tooltip: 'Edit Schedule',
+                                      visualDensity: VisualDensity.compact,
+                                      onPressed: () =>
+                                          _openEditSchedule(context, schedule),
                                     ),
-                                    tooltip: 'Edit Schedule',
-                                    visualDensity: VisualDensity.compact,
-                                    onPressed: () =>
-                                        _openEditSchedule(context, schedule),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  // Delete Button
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.delete_outline,
-                                      size: 18,
-                                      color: AppColors.error,
+                                    const SizedBox(width: 4),
+                                    // Delete Button
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.delete_outline,
+                                        size: 18,
+                                        color: AppColors.error,
+                                      ),
+                                      tooltip: 'Delete Schedule',
+                                      visualDensity: VisualDensity.compact,
+                                      onPressed: () => _confirmDelete(
+                                        context,
+                                        schedule,
+                                        scheduleProvider,
+                                      ),
                                     ),
-                                    tooltip: 'Delete Schedule',
-                                    visualDensity: VisualDensity.compact,
-                                    onPressed: () => _confirmDelete(
-                                      context,
-                                      schedule,
-                                      scheduleProvider,
-                                    ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
-                            ),
                           ],
                         );
                       }).toList(),

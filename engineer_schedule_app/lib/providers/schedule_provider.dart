@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
+import '../models/profile_model.dart';
 import '../models/schedule_model.dart';
 import '../services/schedule_repository.dart';
 import '../services/supabase_service.dart';
 
 class ScheduleProvider extends ChangeNotifier {
   final ScheduleRepository _repository;
+  final SupabaseService _supabaseService;
 
-  ScheduleProvider({ScheduleRepository? repository})
-      : _repository = repository ?? SupabaseService();
+  ScheduleProvider({ScheduleRepository? repository, SupabaseService? supabaseService})
+      : _repository = repository ?? SupabaseService(),
+        _supabaseService = supabaseService ?? SupabaseService();
 
   List<ScheduleModel> _schedules = [];
+  List<ProfileModel> _profiles = [];
   bool _isLoading = false;
   String? _error;
   String? _filterEngineerName;
@@ -51,6 +55,8 @@ class ScheduleProvider extends ChangeNotifier {
 
   List<ScheduleModel> get allSchedules => _schedules;
 
+  List<ProfileModel> get profiles => _profiles;
+
   bool get isLoading => _isLoading;
 
   String? get error => _error;
@@ -61,11 +67,21 @@ class ScheduleProvider extends ChangeNotifier {
 
   DateTime get focusedDate => _focusedDate;
 
-  /// Distinct engineer names from the unfiltered schedule list, sorted.
+  /// Distinct engineer names from both profiles (for admins) and schedules, sorted.
   List<String> get uniqueEngineerNames {
-    final names = _schedules.map((s) => s.engineerName).toSet().toList();
-    names.sort();
-    return names;
+    final names = <String>{};
+    for (final p in _profiles) {
+      if (p.fullName.trim().isNotEmpty) {
+        names.add(p.fullName.trim());
+      }
+    }
+    for (final s in _schedules) {
+      if (s.engineerName.trim().isNotEmpty) {
+        names.add(s.engineerName.trim());
+      }
+    }
+    final list = names.toList()..sort();
+    return list;
   }
 
   /// Distinct site names from the unfiltered schedule list, sorted.
@@ -89,10 +105,15 @@ class ScheduleProvider extends ChangeNotifier {
     try {
       if (isAdmin) {
         _schedules = await _repository.getAllSchedules();
+        try {
+          _profiles = await _supabaseService.getAllProfiles();
+        } catch (_) {}
       } else if (userId != null && userId.isNotEmpty) {
         _schedules = await _repository.getSchedulesForUser(userId);
+        _profiles = [];
       } else {
         _schedules = [];
+        _profiles = [];
       }
     } catch (e) {
       _error = e.toString();
@@ -217,6 +238,7 @@ class ScheduleProvider extends ChangeNotifier {
   /// Resets in-memory schedules and filters (e.g., on sign-out).
   void reset() {
     _schedules = [];
+    _profiles = [];
     _error = null;
     _filterEngineerName = null;
     _filterSiteName = null;

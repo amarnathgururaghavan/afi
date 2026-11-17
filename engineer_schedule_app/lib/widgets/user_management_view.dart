@@ -307,6 +307,10 @@ class _UserManagementViewState extends State<UserManagementView> {
                                     role: selectedRole,
                                   );
 
+                                  final createdEmail = emailController.text.trim();
+                                  final createdPassword = passwordController.text;
+                                  final createdName = nameController.text.trim();
+
                                   if (!mounted) return;
                                   nav.pop();
                                   messenger.showSnackBar(
@@ -327,6 +331,99 @@ class _UserManagementViewState extends State<UserManagementView> {
                                           isAdmin: auth.isAdmin,
                                           userId: auth.currentUserId,
                                         );
+
+                                    // Display confirmation dialog with credentials
+                                    showDialog<void>(
+                                      context: context,
+                                      builder: (alertCtx) => AlertDialog(
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(14),
+                                          side: const BorderSide(
+                                            color: AppColors.silverLight,
+                                          ),
+                                        ),
+                                        title: const Row(
+                                          children: [
+                                            Icon(
+                                              Icons.check_circle_rounded,
+                                              color: AppColors.success,
+                                              size: 24,
+                                            ),
+                                            SizedBox(width: 8),
+                                            Text('User Ready to Sign In'),
+                                          ],
+                                        ),
+                                        content: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'Account for "$createdName" has been created.',
+                                              style: const TextStyle(
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 12),
+                                            Container(
+                                              padding: const EdgeInsets.all(10),
+                                              decoration: BoxDecoration(
+                                                color: AppColors.surfaceSilver,
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                                border: Border.all(
+                                                  color: AppColors.silverLight,
+                                                ),
+                                              ),
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    'Email: $createdEmail',
+                                                    style: const TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                      fontSize: 13,
+                                                      color: AppColors.primary,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    'Password: $createdPassword',
+                                                    style: const TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                      fontSize: 13,
+                                                      color: AppColors.primary,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            const SizedBox(height: 12),
+                                            const Text(
+                                              'The engineer can now sign in immediately using these credentials.',
+                                              style: TextStyle(
+                                                fontSize: 12.5,
+                                                color: AppColors.textSecondary,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        actions: [
+                                          FilledButton(
+                                            onPressed: () =>
+                                                Navigator.of(alertCtx).pop(),
+                                            style: FilledButton.styleFrom(
+                                              backgroundColor: AppColors.primary,
+                                            ),
+                                            child: const Text('OK'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
                                   }
                                 } catch (e) {
                                   final cleanErr = e
@@ -463,6 +560,162 @@ class _UserManagementViewState extends State<UserManagementView> {
         ),
       );
     }
+  }
+
+  Future<void> _showResetPasswordDialog(ProfileModel user) async {
+    final formKey = GlobalKey<FormState>();
+    final passwordController = TextEditingController();
+    bool obscurePassword = true;
+    bool isSubmitting = false;
+    String? dialogError;
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (dialogContext, setModalState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+                side: const BorderSide(color: AppColors.silverLight),
+              ),
+              title: Row(
+                children: [
+                  const Icon(
+                    Icons.lock_reset_rounded,
+                    color: AppColors.primary,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Reset Password: ${user.fullName}',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              content: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Set a new login password for ${user.email}:',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: passwordController,
+                      obscureText: obscurePassword,
+                      decoration: InputDecoration(
+                        labelText: 'New Password *',
+                        hintText: 'Minimum 6 characters',
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            obscurePassword
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                            size: 20,
+                          ),
+                          onPressed: () {
+                            setModalState(() {
+                              obscurePassword = !obscurePassword;
+                            });
+                          },
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      validator: (val) {
+                        if (val == null || val.length < 6) {
+                          return 'Password must be at least 6 characters';
+                        }
+                        return null;
+                      },
+                    ),
+                    if (dialogError != null) ...[
+                      const SizedBox(height: 10),
+                      Text(
+                        dialogError!,
+                        style: const TextStyle(
+                          color: AppColors.error,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          if (!formKey.currentState!.validate()) return;
+                          setModalState(() {
+                            isSubmitting = true;
+                            dialogError = null;
+                          });
+                          try {
+                            await _supabaseService.adminResetUserPassword(
+                              userId: user.id,
+                              newPassword: passwordController.text,
+                            );
+                            if (!mounted) return;
+                            Navigator.of(ctx).pop();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Password for "${user.fullName}" reset successfully!',
+                                ),
+                                backgroundColor: AppColors.success,
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          } catch (e) {
+                            setModalState(() {
+                              isSubmitting = false;
+                              dialogError = e
+                                  .toString()
+                                  .replaceAll('Exception: ', '');
+                            });
+                          }
+                        },
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                  ),
+                  child: isSubmitting
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('Save Password'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
@@ -790,9 +1043,21 @@ class _UserManagementViewState extends State<UserManagementView> {
                                       ),
                                     ),
                                   ),
-                                  trailing: isCurrent
-                                      ? null
-                                      : IconButton(
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.lock_reset_rounded,
+                                          color: AppColors.primary,
+                                          size: 20,
+                                        ),
+                                        tooltip: 'Reset Password',
+                                        onPressed: () =>
+                                            _showResetPasswordDialog(user),
+                                      ),
+                                      if (!isCurrent)
+                                        IconButton(
                                           icon: const Icon(
                                             Icons.delete_outline_rounded,
                                             color: AppColors.error,
@@ -802,6 +1067,8 @@ class _UserManagementViewState extends State<UserManagementView> {
                                           onPressed: () =>
                                               _confirmDeleteUser(user),
                                         ),
+                                    ],
+                                  ),
                                 ),
                               );
                             },

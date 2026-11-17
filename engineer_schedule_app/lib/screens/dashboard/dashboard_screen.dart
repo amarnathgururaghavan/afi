@@ -226,7 +226,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         Text(
                           _viewMode == _ViewMode.weekly
                               ? '${auth.isAdmin ? 'Admin' : 'Engineer'} • $displayName'
-                              : _viewTitle,
+                              : _getViewTitle(auth.isAdmin),
                           style: const TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w400,
@@ -309,8 +309,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ],
           ),
 
-          // ── Floating Action Button: Add Schedule (Only in All view) ─
-          floatingActionButton: _viewMode == _ViewMode.all
+          // ── Floating Action Button: Add Schedule (Only in All view for Admin) ─
+          floatingActionButton: (auth.isAdmin && _viewMode == _ViewMode.all)
               ? FloatingActionButton.extended(
                   heroTag: 'fab_add_schedule_action',
                   onPressed: () async {
@@ -334,14 +334,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  String get _viewTitle {
+  String _getViewTitle(bool isAdmin) {
     switch (_viewMode) {
       case _ViewMode.weekly:
         return 'Weekly View';
       case _ViewMode.monthly:
         return 'Monthly Calendar';
       case _ViewMode.all:
-        return 'All Schedules';
+        return isAdmin ? 'All Schedules' : 'My Schedules';
       case _ViewMode.userManagement:
         return 'User Management';
     }
@@ -527,8 +527,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 _buildDrawerItem(
                   icon: Icons.table_rows_rounded,
-                  title: 'All Schedules',
-                  subtitle: 'Full database & filters',
+                  title: auth.isAdmin ? 'All Schedules' : 'My Schedules',
+                  subtitle: auth.isAdmin
+                      ? 'Full database & filters'
+                      : 'My scheduled site visits',
                   isSelected: _viewMode == _ViewMode.all,
                   onTap: () {
                     Navigator.of(context).pop();

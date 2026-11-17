@@ -96,6 +96,20 @@ class SupabaseService implements ScheduleRepository {
     }
   }
 
+  Future<void> adminResetUserPassword({
+    required String userId,
+    required String newPassword,
+  }) async {
+    try {
+      await _client.rpc('admin_reset_user_password', params: {
+        'target_user_id': userId,
+        'new_password': newPassword,
+      });
+    } catch (e) {
+      throw Exception('Failed to reset password: $e');
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // SCHEDULES – READ
   // ---------------------------------------------------------------------------
