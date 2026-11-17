@@ -13,11 +13,12 @@ import 'package:engineer_schedule_app/utils/file_saver.dart';
 import 'package:engineer_schedule_app/widgets/all_schedules_view.dart';
 import 'package:engineer_schedule_app/widgets/filter_bar.dart';
 import 'package:engineer_schedule_app/widgets/monthly_view.dart';
+import 'package:engineer_schedule_app/widgets/my_zonal_view.dart';
 import 'package:engineer_schedule_app/widgets/user_management_view.dart';
 import 'package:engineer_schedule_app/widgets/weekly_view.dart';
 
 /// Describes the view modes available via the dashboard menu.
-enum _ViewMode { weekly, monthly, all, userManagement }
+enum _ViewMode { weekly, monthly, all, myZonal, userManagement }
 
 /// Main dashboard screen showing engineer work schedules in either a weekly
 /// or monthly view, with admin-only filters, CRUD controls, and high-res
@@ -329,6 +330,55 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   elevation: 3,
                 )
               : null,
+
+          // ── Bottom Navigation Bar: Instant 1-Tap Switching (Weekly, Monthly, All, My Zonal) ─
+          bottomNavigationBar: NavigationBar(
+            selectedIndex: _getNavIndex(),
+            height: 64,
+            elevation: 3,
+            backgroundColor: Colors.white,
+            indicatorColor: AppColors.forestMint,
+            onDestinationSelected: (idx) {
+              setState(() {
+                switch (idx) {
+                  case 0:
+                    _viewMode = _ViewMode.weekly;
+                    break;
+                  case 1:
+                    _viewMode = _ViewMode.monthly;
+                    break;
+                  case 2:
+                    _viewMode = _ViewMode.all;
+                    break;
+                  case 3:
+                    _viewMode = _ViewMode.myZonal;
+                    break;
+                }
+              });
+            },
+            destinations: [
+              const NavigationDestination(
+                icon: Icon(Icons.view_week_outlined),
+                selectedIcon: Icon(Icons.view_week_rounded, color: AppColors.primary),
+                label: 'Weekly',
+              ),
+              const NavigationDestination(
+                icon: Icon(Icons.calendar_month_outlined),
+                selectedIcon: Icon(Icons.calendar_month_rounded, color: AppColors.primary),
+                label: 'Monthly',
+              ),
+              NavigationDestination(
+                icon: const Icon(Icons.table_rows_outlined),
+                selectedIcon: const Icon(Icons.table_rows_rounded, color: AppColors.primary),
+                label: auth.isAdmin ? 'All' : 'My Schedules',
+              ),
+              const NavigationDestination(
+                icon: Icon(Icons.store_mall_directory_outlined),
+                selectedIcon: Icon(Icons.store_mall_directory_rounded, color: AppColors.primary),
+                label: 'My Zonal',
+              ),
+            ],
+          ),
         );
       },
     );
@@ -342,8 +392,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return 'Monthly Calendar';
       case _ViewMode.all:
         return isAdmin ? 'All Schedules' : 'My Schedules';
+      case _ViewMode.myZonal:
+        return 'My Zonal (Outlets & Cash)';
       case _ViewMode.userManagement:
         return 'User Management';
+    }
+  }
+
+  int _getNavIndex() {
+    switch (_viewMode) {
+      case _ViewMode.weekly:
+        return 0;
+      case _ViewMode.monthly:
+        return 1;
+      case _ViewMode.all:
+        return 2;
+      case _ViewMode.myZonal:
+        return 3;
+      case _ViewMode.userManagement:
+        return 0;
     }
   }
 
@@ -537,6 +604,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     setState(() => _viewMode = _ViewMode.all);
                   },
                 ),
+                _buildDrawerItem(
+                  icon: Icons.store_mall_directory_rounded,
+                  title: 'My Zonal',
+                  subtitle: 'Retail Outlets, Complaints & Cash',
+                  isSelected: _viewMode == _ViewMode.myZonal,
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    setState(() => _viewMode = _ViewMode.myZonal);
+                  },
+                ),
                 if (auth.isAdmin) ...[
                   const Padding(
                     padding:
@@ -646,6 +723,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return const MonthlyView();
       case _ViewMode.all:
         return const AllSchedulesView();
+      case _ViewMode.myZonal:
+        return const MyZonalView();
       case _ViewMode.userManagement:
         return const UserManagementView();
     }
