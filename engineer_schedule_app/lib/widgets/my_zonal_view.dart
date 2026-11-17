@@ -799,22 +799,6 @@ class _MaintenanceDashboardState extends State<_MaintenanceDashboard> {
       ),
     );
   }
-                });
-                if (context.mounted) Navigator.of(ctx).pop();
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Failed: $e'), backgroundColor: AppColors.error),
-                  );
-                }
-              }
-            },
-            child: const Text('Save Complaint'),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
