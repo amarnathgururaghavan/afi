@@ -1,0 +1,12 @@
+# Flutter build outputs
+**/build/
+**/.dart_tool/
+**/.pub/
+**/.pub-cache/
+*.apk
+web_server.dart
+scratch*
+*.log
+.DS_Store
+.idea/
+*.iml
