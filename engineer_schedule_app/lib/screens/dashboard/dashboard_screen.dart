@@ -18,12 +18,12 @@ import 'package:engineer_schedule_app/widgets/user_management_view.dart';
 import 'package:engineer_schedule_app/widgets/weekly_view.dart';
 
 /// The 3 primary menus of the application:
-/// 1. Schedule (Weekly, Monthly, All)
-/// 2. My Zonal (Maintenance Complaints, Cash Checking)
-/// 3. Admin Menu (User Management)
+/// - Schedule (Weekly, Monthly, All)
+/// - My Zonal (Maintenance Complaints, Cash Checking)
+/// - Admin Menu (User Management)
 enum MainMenu { schedule, myZonal, admin }
 
-/// Sub-tabs for Menu 1: Schedule.
+/// Sub-tabs for Menu: Schedule.
 enum ScheduleSubTab { weekly, monthly, all }
 
 /// Main dashboard screen structured strictly around the 3 primary menus.
@@ -160,6 +160,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     return Consumer2<AuthProvider, ScheduleProvider>(
       builder: (context, auth, schedule, _) {
+        // Enforce role boundary: Field Engineers can ONLY access Schedule
+        if (!auth.isAdmin && _mainMenu != MainMenu.schedule) {
+          _mainMenu = MainMenu.schedule;
+        }
+
         final displayName = auth.profile?.fullName.isNotEmpty == true
             ? auth.profile!.fullName
             : (auth.profile?.email ?? '');
@@ -281,11 +286,53 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               const SizedBox(width: 4),
             ],
+            // Top Tab Navigation Bar: Administrators see Schedule, My Zonal, Admin Menu
+            bottom: auth.isAdmin
+                ? PreferredSize(
+                    preferredSize: const Size.fromHeight(46),
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        color: AppColors.primaryDark,
+                        border: Border(
+                          top: BorderSide(
+                            color: Color(0x33FFFFFF),
+                            width: 0.8,
+                          ),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          _buildTopTabItem(
+                            icon: Icons.calendar_today_rounded,
+                            label: 'Schedule',
+                            isSelected: _mainMenu == MainMenu.schedule,
+                            onTap: () =>
+                                setState(() => _mainMenu = MainMenu.schedule),
+                          ),
+                          _buildTopTabItem(
+                            icon: Icons.store_mall_directory_rounded,
+                            label: 'My Zonal',
+                            isSelected: _mainMenu == MainMenu.myZonal,
+                            onTap: () =>
+                                setState(() => _mainMenu = MainMenu.myZonal),
+                          ),
+                          _buildTopTabItem(
+                            icon: Icons.admin_panel_settings_rounded,
+                            label: 'Admin Menu',
+                            isSelected: _mainMenu == MainMenu.admin,
+                            onTap: () =>
+                                setState(() => _mainMenu = MainMenu.admin),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : null,
           ),
           drawer: _buildDrawer(context, auth),
           body: _buildBodyContent(auth, schedule),
 
-          // Floating Action Button: Add Schedule (shown only in Schedule > All Schedules)
+          // Floating Action Button: Add Schedule (shown only in Schedule > All Schedules / My Schedules)
           floatingActionButton: (_mainMenu == MainMenu.schedule &&
                   _scheduleSubTab == ScheduleSubTab.all)
               ? FloatingActionButton.extended(
@@ -306,42 +353,58 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   elevation: 3,
                 )
               : null,
-
-          // ── EXACTLY 3 MAIN MENUS: 1. Schedule | 2. My Zonal | 3. Admin Menu ──
-          bottomNavigationBar: NavigationBar(
-            selectedIndex: _mainMenu.index,
-            height: 64,
-            elevation: 3,
-            backgroundColor: Colors.white,
-            indicatorColor: AppColors.forestMint,
-            onDestinationSelected: (idx) {
-              setState(() {
-                _mainMenu = MainMenu.values[idx];
-              });
-            },
-            destinations: [
-              const NavigationDestination(
-                icon: Icon(Icons.calendar_today_outlined),
-                selectedIcon:
-                    Icon(Icons.calendar_today_rounded, color: AppColors.primary),
-                label: '1. Schedule',
-              ),
-              const NavigationDestination(
-                icon: Icon(Icons.store_mall_directory_outlined),
-                selectedIcon: Icon(Icons.store_mall_directory_rounded,
-                    color: AppColors.primary),
-                label: '2. My Zonal',
-              ),
-              const NavigationDestination(
-                icon: Icon(Icons.admin_panel_settings_outlined),
-                selectedIcon: Icon(Icons.admin_panel_settings_rounded,
-                    color: AppColors.primary),
-                label: '3. Admin Menu',
-              ),
-            ],
-          ),
         );
       },
+    );
+  }
+
+  Widget _buildTopTabItem({
+    required IconData icon,
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          child: Container(
+            height: 46,
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: isSelected ? AppColors.accentLight : Colors.transparent,
+                  width: 3.5,
+                ),
+              ),
+              color: isSelected
+                  ? Colors.white.withValues(alpha: 0.14)
+                  : Colors.transparent,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon,
+                  size: 17,
+                  color: isSelected ? Colors.white : Colors.white70,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                    color: isSelected ? Colors.white : Colors.white70,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -350,18 +413,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
       case MainMenu.schedule:
         switch (_scheduleSubTab) {
           case ScheduleSubTab.weekly:
-            return '1. Schedule • Weekly View';
+            return 'Schedule • Weekly View';
           case ScheduleSubTab.monthly:
-            return '1. Schedule • Monthly View';
+            return 'Schedule • Monthly View';
           case ScheduleSubTab.all:
             return isAdmin
-                ? '1. Schedule • All Schedules'
-                : '1. Schedule • My Schedules';
+                ? 'Schedule • All Schedules'
+                : 'Schedule • My Schedules';
         }
       case MainMenu.myZonal:
-        return '2. My Zonal (Complaints & Cash)';
+        return 'My Zonal • Complaints & Cash';
       case MainMenu.admin:
-        return '3. Admin Menu • User Management';
+        return 'Admin Menu • User Management';
     }
   }
 
@@ -440,7 +503,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
         );
 
       case MainMenu.myZonal:
-        return const MyZonalView();
+        if (auth.isAdmin) {
+          return const MyZonalView();
+        } else {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.store_mall_directory_outlined,
+                      size: 64, color: AppColors.silverDark),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Administrator Access Required',
+                    style: AppTextStyles.heading3,
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'My Zonal is restricted to company administrators.\nPlease contact an administrator if you require access.',
+                    style: AppTextStyles.bodySmall,
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
 
       case MainMenu.admin:
         if (auth.isAdmin) {
@@ -643,11 +732,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
               padding:
                   const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
               children: [
-                // ── MENU 1. SCHEDULE ─────────────────────────────────────────
+                // ── SCHEDULE ─────────────────────────────────────────────────
                 const Padding(
                   padding: EdgeInsets.only(left: 14, bottom: 4, top: 4),
                   child: Text(
-                    '1. SCHEDULE',
+                    'SCHEDULE',
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w800,
@@ -701,63 +790,66 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   },
                 ),
 
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                  child: Divider(color: AppColors.silverLight),
-                ),
+                // ── ADMIN ONLY SECTIONS: MY ZONAL & ADMIN MENU ───────────────
+                if (auth.isAdmin) ...[
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    child: Divider(color: AppColors.silverLight),
+                  ),
 
-                // ── MENU 2. MY ZONAL ─────────────────────────────────────────
-                const Padding(
-                  padding: EdgeInsets.only(left: 14, bottom: 4),
-                  child: Text(
-                    '2. MY ZONAL',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.silverDark,
-                      letterSpacing: 1.0,
+                  // ── MY ZONAL ─────────────────────────────────────────────
+                  const Padding(
+                    padding: EdgeInsets.only(left: 14, bottom: 4),
+                    child: Text(
+                      'MY ZONAL',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.silverDark,
+                        letterSpacing: 1.0,
+                      ),
                     ),
                   ),
-                ),
-                _buildDrawerItem(
-                  icon: Icons.store_mall_directory_rounded,
-                  title: 'My Zonal',
-                  subtitle: 'Complaints (OWP, TPT, WIM) & Cash Checking',
-                  isSelected: _mainMenu == MainMenu.myZonal,
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    setState(() => _mainMenu = MainMenu.myZonal);
-                  },
-                ),
+                  _buildDrawerItem(
+                    icon: Icons.store_mall_directory_rounded,
+                    title: 'My Zonal',
+                    subtitle: 'Complaints (OWP, TPT, WIM) & Cash Checking',
+                    isSelected: _mainMenu == MainMenu.myZonal,
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      setState(() => _mainMenu = MainMenu.myZonal);
+                    },
+                  ),
 
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                  child: Divider(color: AppColors.silverLight),
-                ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    child: Divider(color: AppColors.silverLight),
+                  ),
 
-                // ── MENU 3. ADMIN MENU ───────────────────────────────────────
-                const Padding(
-                  padding: EdgeInsets.only(left: 14, bottom: 4),
-                  child: Text(
-                    '3. ADMIN MENU',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.silverDark,
-                      letterSpacing: 1.0,
+                  // ── ADMIN MENU ───────────────────────────────────────────
+                  const Padding(
+                    padding: EdgeInsets.only(left: 14, bottom: 4),
+                    child: Text(
+                      'ADMIN MENU',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.silverDark,
+                        letterSpacing: 1.0,
+                      ),
                     ),
                   ),
-                ),
-                _buildDrawerItem(
-                  icon: Icons.manage_accounts_rounded,
-                  title: 'User Management',
-                  subtitle: 'Add / Delete users & engineers',
-                  isSelected: _mainMenu == MainMenu.admin,
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    setState(() => _mainMenu = MainMenu.admin);
-                  },
-                ),
+                  _buildDrawerItem(
+                    icon: Icons.manage_accounts_rounded,
+                    title: 'User Management',
+                    subtitle: 'Add / Delete users & engineers',
+                    isSelected: _mainMenu == MainMenu.admin,
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      setState(() => _mainMenu = MainMenu.admin);
+                    },
+                  ),
+                ],
               ],
             ),
           ),

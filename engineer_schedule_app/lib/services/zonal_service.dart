@@ -80,6 +80,28 @@ class ZonalService {
     return MaintenanceComplaint.fromMap(Map<String, dynamic>.from(response));
   }
 
+  /// Updates an entire complaint with edited fields.
+  Future<MaintenanceComplaint> updateComplaint(
+    String id,
+    Map<String, dynamic> data,
+  ) async {
+    final updateData = Map<String, dynamic>.from(data);
+    updateData['updated_at'] = DateTime.now().toIso8601String();
+    if (updateData['status'] == 'Completed') {
+      updateData['completed_date'] =
+          DateTime.now().toIso8601String().split('T').first;
+    }
+
+    final response = await _client
+        .from('maintenance_complaints')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single();
+
+    return MaintenanceComplaint.fromMap(Map<String, dynamic>.from(response));
+  }
+
   /// Inserts a new maintenance complaint record.
   Future<MaintenanceComplaint> insertComplaint(
     Map<String, dynamic> complaintData,

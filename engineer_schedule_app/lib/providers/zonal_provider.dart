@@ -365,6 +365,25 @@ class ZonalProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> editComplaint(String id, Map<String, dynamic> data) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final updated = await _service.updateComplaint(id, data);
+      final idx = _allComplaints.indexWhere((c) => c.id == id);
+      if (idx != -1) {
+        _allComplaints[idx] = updated;
+      }
+      _error = null;
+    } catch (e) {
+      _error = 'Failed to edit complaint: $e';
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> deleteComplaint(String id) async {
     _allComplaints.removeWhere((c) => c.id == id);
     notifyListeners();

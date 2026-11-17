@@ -204,7 +204,7 @@ class _MaintenanceDashboardState extends State<_MaintenanceDashboard> {
                   TextField(
                     controller: _searchCtrl,
                     decoration: InputDecoration(
-                      hintText: 'Search equipment, problem, vendor, category...',
+                      hintText: 'Search equipment, problem, category...',
                       prefixIcon: const Icon(Icons.search, size: 20),
                       suffixIcon: _searchCtrl.text.isNotEmpty
                           ? IconButton(
@@ -653,16 +653,36 @@ class _MaintenanceDashboardState extends State<_MaintenanceDashboard> {
           const Divider(height: 1, color: AppColors.silverLight),
           const SizedBox(height: 8),
 
-          // Bottom Bar: Status label & 1-Click Status Cycling Button
+          // Bottom Bar: Edit Button & 1-Click Status Cycling Button
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Status:',
-                style: TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textSecondary,
+              // Edit Option Button
+              InkWell(
+                onTap: () => _showEditComplaintDialog(context, item, zonal),
+                borderRadius: BorderRadius.circular(6),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceSilver,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: AppColors.silverLight),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.edit_outlined, size: 14, color: AppColors.primary),
+                      SizedBox(width: 5),
+                      Text(
+                        'Edit',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
 
@@ -699,6 +719,157 @@ class _MaintenanceDashboardState extends State<_MaintenanceDashboard> {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  void _showEditComplaintDialog(
+    BuildContext context,
+    MaintenanceComplaint item,
+    ZonalProvider zonal,
+  ) {
+    final formKey = GlobalKey<FormState>();
+    String selectedSite = item.siteId;
+    String selectedPriority = item.priority;
+    String selectedStatus = item.status;
+    final equipCtrl = TextEditingController(text: item.equipment);
+    final catCtrl = TextEditingController(text: item.category);
+    final probCtrl = TextEditingController(text: item.problem);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Row(
+            children: [
+              const Icon(Icons.edit_note_rounded, color: AppColors.primary, size: 24),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Edit Complaint #${item.sNo ?? item.id}',
+                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: 480,
+            child: SingleChildScrollView(
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    DropdownButtonFormField<String>(
+                      value: selectedSite,
+                      decoration: const InputDecoration(labelText: 'Site Outlet'),
+                      items: const [
+                        DropdownMenuItem(value: 'OWP', child: Text('Old Washermanpet (OWP)')),
+                        DropdownMenuItem(value: 'TPT', child: Text('Tondiarpet (TPT)')),
+                        DropdownMenuItem(value: 'WIM', child: Text('Wimco Nagar (WIM)')),
+                      ],
+                      onChanged: (v) {
+                        if (v != null) setDialogState(() => selectedSite = v);
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    TextFormField(
+                      controller: equipCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Equipment Name *',
+                        hintText: 'e.g. 3 HP Air Compressor',
+                      ),
+                      validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                    ),
+                    const SizedBox(height: 10),
+                    TextFormField(
+                      controller: catCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Category *',
+                        hintText: 'e.g. Electrical & Lighting',
+                      ),
+                      validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                    ),
+                    const SizedBox(height: 10),
+                    DropdownButtonFormField<String>(
+                      value: selectedPriority,
+                      decoration: const InputDecoration(labelText: 'Priority *'),
+                      items: const [
+                        DropdownMenuItem(value: 'P1 - Critical', child: Text('🔴 P1 - Critical')),
+                        DropdownMenuItem(value: 'P2 - High', child: Text('🟠 P2 - High')),
+                        DropdownMenuItem(value: 'P3 - Medium', child: Text('🟡 P3 - Medium')),
+                        DropdownMenuItem(value: 'P4 - Low', child: Text('⚪ P4 - Low')),
+                      ],
+                      onChanged: (v) {
+                        if (v != null) setDialogState(() => selectedPriority = v);
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    DropdownButtonFormField<String>(
+                      value: selectedStatus,
+                      decoration: const InputDecoration(labelText: 'Status *'),
+                      items: const [
+                        DropdownMenuItem(value: 'Pending', child: Text('⏳ Pending')),
+                        DropdownMenuItem(value: 'In Progress', child: Text('🔄 In Progress')),
+                        DropdownMenuItem(value: 'Completed', child: Text('✅ Completed')),
+                      ],
+                      onChanged: (v) {
+                        if (v != null) setDialogState(() => selectedStatus = v);
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    TextFormField(
+                      controller: probCtrl,
+                      decoration: const InputDecoration(labelText: 'Problem Description *'),
+                      maxLines: 3,
+                      validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+              onPressed: () async {
+                if (formKey.currentState?.validate() != true) return;
+                try {
+                  await zonal.editComplaint(item.id, {
+                    'site_id': selectedSite,
+                    'equipment': equipCtrl.text.trim(),
+                    'category': catCtrl.text.trim(),
+                    'problem': probCtrl.text.trim(),
+                    'priority': selectedPriority,
+                    'status': selectedStatus,
+                  });
+                  if (context.mounted) {
+                    Navigator.of(ctx).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Complaint updated successfully'),
+                        backgroundColor: AppColors.success,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Failed: $e'), backgroundColor: AppColors.error),
+                    );
+                  }
+                }
+              },
+              child: const Text('Save Changes'),
+            ),
+          ],
+        ),
       ),
     );
   }
