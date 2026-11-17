@@ -309,8 +309,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ],
           ),
 
-          // ── Floating Action Button: Add Schedule (Only in All view for Admin) ─
-          floatingActionButton: (auth.isAdmin && _viewMode == _ViewMode.all)
+          // ── Floating Action Button: Add Schedule (Available in All view for both Admin & Engineer) ─
+          floatingActionButton: _viewMode == _ViewMode.all
               ? FloatingActionButton.extended(
                   heroTag: 'fab_add_schedule_action',
                   onPressed: () async {

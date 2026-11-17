@@ -83,16 +83,21 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
     _selectedDate = widget.initialDate ?? DateTime.now();
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    _selectedEngineerId = authProvider.currentUserId;
+    _selectedEngineerName = authProvider.profile?.fullName.isNotEmpty == true
+        ? authProvider.profile!.fullName
+        : (authProvider.profile?.email ?? 'Engineer');
+
     if (!_isEditing) {
-      _selectedEngineerId = authProvider.currentUserId;
-      _selectedEngineerName = authProvider.profile?.fullName.isNotEmpty == true
-          ? authProvider.profile!.fullName
-          : (authProvider.profile?.email ?? 'Engineer');
       _selectedSiteName = kPredefinedSites.first;
       _siteNameController.text = kPredefinedSites.first;
     }
 
-    _loadProfiles();
+    if (authProvider.isAdmin) {
+      _loadProfiles();
+    } else {
+      _isLoadingProfiles = false;
+    }
 
     // Pre-populate fields when editing.
     if (_isEditing) {
@@ -100,8 +105,10 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
       _selectedSiteName = s.siteName.trim().toUpperCase();
       _siteNameController.text = _selectedSiteName!;
       _selectedDate = s.scheduleDate;
-      _selectedEngineerId = s.userId;
-      _selectedEngineerName = s.engineerName;
+      if (authProvider.isAdmin) {
+        _selectedEngineerId = s.userId;
+        _selectedEngineerName = s.engineerName;
+      }
     }
   }
 
@@ -411,6 +418,31 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
 
   /// Builds the engineer name dropdown populated from loaded profiles.
   Widget _buildEngineerDropdown() {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (!authProvider.isAdmin) {
+      final name = authProvider.profile?.fullName.isNotEmpty == true
+          ? authProvider.profile!.fullName
+          : (authProvider.profile?.email ?? 'Engineer');
+      return TextFormField(
+        initialValue: name,
+        enabled: false,
+        decoration: InputDecoration(
+          labelText: 'Engineer',
+          prefixIcon: const Icon(Icons.person_outline),
+          filled: true,
+          fillColor: AppColors.surfaceSilver,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+            borderSide: const BorderSide(color: AppColors.silverLight),
+          ),
+          disabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+            borderSide: const BorderSide(color: AppColors.silverLight),
+          ),
+        ),
+      );
+    }
+
     if (_isLoadingProfiles) {
       return const InputDecorator(
         decoration: InputDecoration(
