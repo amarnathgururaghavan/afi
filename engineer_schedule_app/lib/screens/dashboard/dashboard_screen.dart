@@ -702,47 +702,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ),
                 _buildDrawerItem(
-                  icon: Icons.view_week_rounded,
-                  title: 'Weekly View',
-                  subtitle: 'Tentative weekly schedule',
-                  isSelected: _mainMenu == MainMenu.schedule &&
-                      _scheduleSubTab == ScheduleSubTab.weekly,
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    setState(() {
-                      _mainMenu = MainMenu.schedule;
-                      _scheduleSubTab = ScheduleSubTab.weekly;
-                    });
-                  },
-                ),
-                _buildDrawerItem(
-                  icon: Icons.calendar_month_rounded,
-                  title: 'Monthly View',
-                  subtitle: 'Full month calendar',
-                  isSelected: _mainMenu == MainMenu.schedule &&
-                      _scheduleSubTab == ScheduleSubTab.monthly,
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    setState(() {
-                      _mainMenu = MainMenu.schedule;
-                      _scheduleSubTab = ScheduleSubTab.monthly;
-                    });
-                  },
-                ),
-                _buildDrawerItem(
-                  icon: Icons.table_rows_rounded,
-                  title: auth.isAdmin ? 'All Schedules' : 'My Schedules',
+                  icon: Icons.calendar_today_rounded,
+                  title: 'Schedule',
                   subtitle: auth.isAdmin
-                      ? 'Full database & filters'
-                      : 'My scheduled site visits',
-                  isSelected: _mainMenu == MainMenu.schedule &&
-                      _scheduleSubTab == ScheduleSubTab.all,
+                      ? 'Weekly, Monthly & All Schedules'
+                      : 'Weekly, Monthly & My Schedules',
+                  isSelected: _mainMenu == MainMenu.schedule,
                   onTap: () {
                     Navigator.of(context).pop();
-                    setState(() {
-                      _mainMenu = MainMenu.schedule;
-                      _scheduleSubTab = ScheduleSubTab.all;
-                    });
+                    setState(() => _mainMenu = MainMenu.schedule);
                   },
                 ),
 
