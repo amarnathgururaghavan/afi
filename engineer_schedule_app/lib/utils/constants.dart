@@ -30,6 +30,10 @@ const List<String> kPredefinedSites = [
   'VALASARAVAKKAM',
   'TONDAIRPET',
   'KARNATAKA',
+  'ISUZU',
+  'HIGH TEMP',
+  'LEAVE',
+  'REDHILLS',
 ];
 
 // ─── Colors (Deep Forest Green & Modern Silver Theme) ──────────────────────────
