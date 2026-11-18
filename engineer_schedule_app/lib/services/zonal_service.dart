@@ -23,6 +23,46 @@ class ZonalService {
         .toList();
   }
 
+  Future<Site> addSite({
+    required String id,
+    required String name,
+    String state = 'Tamil Nadu',
+    String zone = 'TN-V',
+  }) async {
+    final cleanId = id.trim().toUpperCase();
+    final cleanName = name.trim();
+    if (cleanId.isEmpty || cleanName.isEmpty) {
+      throw Exception('Site code and site name are required');
+    }
+    try {
+      final response = await _client
+          .from('sites')
+          .insert({
+            'id': cleanId,
+            'name': cleanName,
+            'state': state.trim().isEmpty ? 'Tamil Nadu' : state.trim(),
+            'zone': zone.trim().isEmpty ? 'TN-V' : zone.trim(),
+          })
+          .select()
+          .single();
+      return Site.fromMap(Map<String, dynamic>.from(response));
+    } catch (e) {
+      if (e.toString().toLowerCase().contains('duplicate') ||
+          e.toString().contains('23505')) {
+        throw Exception('Zonal site code "$cleanId" already exists');
+      }
+      throw Exception('Failed to add zonal site: $e');
+    }
+  }
+
+  Future<void> deleteSite(String id) async {
+    try {
+      await _client.from('sites').delete().eq('id', id.trim().toUpperCase());
+    } catch (e) {
+      throw Exception('Failed to delete zonal site: $e');
+    }
+  }
+
   // ─── Maintenance Complaints ─────────────────────────────────────────────────
 
   /// Fetches complaints with optional filters for site, priority, and status.

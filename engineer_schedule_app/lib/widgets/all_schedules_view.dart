@@ -283,7 +283,10 @@ class _AllSchedulesViewState extends State<AllSchedulesView> {
                       ),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String?>(
-                          value: _selectedSiteFilter,
+                          value: (scheduleProvider.scheduleSites
+                                  .contains(_selectedSiteFilter))
+                              ? _selectedSiteFilter
+                              : null,
                           isExpanded: true,
                           hint: const Row(
                             children: [
@@ -321,7 +324,7 @@ class _AllSchedulesViewState extends State<AllSchedulesView> {
                                 ),
                               ),
                             ),
-                            ...kPredefinedSites.map(
+                            ...scheduleProvider.scheduleSites.map(
                               (site) => DropdownMenuItem<String?>(
                                 value: site,
                                 child: Text(

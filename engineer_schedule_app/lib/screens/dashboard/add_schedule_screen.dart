@@ -67,8 +67,11 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
 
   bool get _isEditing => widget.schedule != null;
 
-  List<String> get _availableSites {
-    final list = List<String>.from(kPredefinedSites);
+  List<String> _availableSites(BuildContext context) {
+    final providerSites = context.watch<ScheduleProvider>().scheduleSites;
+    final list = List<String>.from(
+      providerSites.isNotEmpty ? providerSites : kPredefinedSites,
+    );
     if (_selectedSiteName != null &&
         _selectedSiteName!.isNotEmpty &&
         !list.contains(_selectedSiteName)) {
@@ -83,14 +86,19 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
     _selectedDate = widget.initialDate ?? DateTime.now();
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final scheduleProvider =
+        Provider.of<ScheduleProvider>(context, listen: false);
+    final defaultSites = scheduleProvider.scheduleSites.isNotEmpty
+        ? scheduleProvider.scheduleSites
+        : kPredefinedSites;
     _selectedEngineerId = authProvider.currentUserId;
     _selectedEngineerName = authProvider.profile?.fullName.isNotEmpty == true
         ? authProvider.profile!.fullName
         : (authProvider.profile?.email ?? 'Engineer');
 
     if (!_isEditing) {
-      _selectedSiteName = kPredefinedSites.first;
-      _siteNameController.text = kPredefinedSites.first;
+      _selectedSiteName = defaultSites.first;
+      _siteNameController.text = defaultSites.first;
     }
 
     if (authProvider.isAdmin) {
@@ -369,9 +377,9 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
     );
   }
 
-  /// Builds the site name dropdown populated with the predefined sites.
+  /// Builds the site name dropdown populated with the dynamic schedule sites.
   Widget _buildSiteDropdown() {
-    final sites = _availableSites;
+    final sites = _availableSites(context);
     if (_selectedSiteName == null || !sites.contains(_selectedSiteName)) {
       _selectedSiteName = sites.first;
       _siteNameController.text = sites.first;

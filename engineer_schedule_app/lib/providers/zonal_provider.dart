@@ -225,6 +225,9 @@ class ZonalProvider extends ChangeNotifier {
       final fetchedSites = await _service.fetchSites();
       if (fetchedSites.isNotEmpty) {
         _sites = fetchedSites;
+        if (!_sites.any((s) => s.id == _cashSiteId)) {
+          _cashSiteId = _sites.first.id;
+        }
       }
       await loadComplaints();
       await loadHistory();
@@ -235,6 +238,59 @@ class ZonalProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  Future<void> loadSites() async {
+    try {
+      final fetchedSites = await _service.fetchSites();
+      if (fetchedSites.isNotEmpty) {
+        _sites = fetchedSites;
+        if (!_sites.any((s) => s.id == _cashSiteId)) {
+          _cashSiteId = _sites.first.id;
+        }
+        if (_filterSiteId != 'ALL' &&
+            !_sites.any((s) => s.id == _filterSiteId)) {
+          _filterSiteId = 'ALL';
+        }
+        notifyListeners();
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> addSite({
+    required String id,
+    required String name,
+    String state = 'Tamil Nadu',
+    String zone = 'TN-V',
+  }) async {
+    final created = await _service.addSite(
+      id: id,
+      name: name,
+      state: state,
+      zone: zone,
+    );
+    _sites = [..._sites, created]..sort((a, b) => a.id.compareTo(b.id));
+    if (_sites.length == 1) {
+      _cashSiteId = created.id;
+    }
+    notifyListeners();
+  }
+
+  Future<void> deleteSite(String id) async {
+    final normalized = id.trim().toUpperCase();
+    await _service.deleteSite(normalized);
+    _sites = _sites.where((s) => s.id != normalized).toList();
+    if (_filterSiteId == normalized) {
+      _filterSiteId = 'ALL';
+    }
+    if (_cashSiteId == normalized && _sites.isNotEmpty) {
+      _cashSiteId = _sites.first.id;
+    }
+    _allComplaints.removeWhere((c) => c.siteId == normalized);
+    _history.removeWhere((h) => h.siteId == normalized);
+    notifyListeners();
   }
 
   void _setupRealtime() {

@@ -252,4 +252,55 @@ class SupabaseService implements ScheduleRepository {
       throw Exception('Failed to delete schedule: $e');
     }
   }
+
+  // ---------------------------------------------------------------------------
+  // SCHEDULE SITES – READ / CREATE / DELETE
+  // ---------------------------------------------------------------------------
+
+  Future<List<String>> getScheduleSites() async {
+    try {
+      final data = await _client
+          .from(DbTables.scheduleSites)
+          .select('name')
+          .order('id', ascending: true);
+      return (data as List)
+          .map((row) => (row['name'] as String).trim().toUpperCase())
+          .where((name) => name.isNotEmpty)
+          .toList();
+    } catch (e) {
+      throw Exception('Failed to fetch schedule sites: $e');
+    }
+  }
+
+  Future<String> addScheduleSite(String siteName) async {
+    final normalized = siteName.trim().toUpperCase();
+    if (normalized.isEmpty) {
+      throw Exception('Site name cannot be empty');
+    }
+    try {
+      final data = await _client
+          .from(DbTables.scheduleSites)
+          .insert({'name': normalized})
+          .select('name')
+          .single();
+      return (data['name'] as String).trim().toUpperCase();
+    } catch (e) {
+      if (e.toString().toLowerCase().contains('duplicate') ||
+          e.toString().contains('23505')) {
+        throw Exception('Schedule site "$normalized" already exists');
+      }
+      throw Exception('Failed to add schedule site: $e');
+    }
+  }
+
+  Future<void> deleteScheduleSite(String siteName) async {
+    try {
+      await _client
+          .from(DbTables.scheduleSites)
+          .delete()
+          .eq('name', siteName.trim().toUpperCase());
+    } catch (e) {
+      throw Exception('Failed to delete schedule site: $e');
+    }
+  }
 }

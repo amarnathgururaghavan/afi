@@ -3,6 +3,7 @@ import '../models/profile_model.dart';
 import '../models/schedule_model.dart';
 import '../services/schedule_repository.dart';
 import '../services/supabase_service.dart';
+import '../utils/constants.dart';
 
 class ScheduleProvider extends ChangeNotifier {
   final ScheduleRepository _repository;
@@ -14,6 +15,7 @@ class ScheduleProvider extends ChangeNotifier {
 
   List<ScheduleModel> _schedules = [];
   List<ProfileModel> _profiles = [];
+  List<String> _scheduleSites = List<String>.from(kPredefinedSites);
   bool _isLoading = false;
   String? _error;
   String? _filterEngineerName;
@@ -56,6 +58,8 @@ class ScheduleProvider extends ChangeNotifier {
   List<ScheduleModel> get allSchedules => _schedules;
 
   List<ProfileModel> get profiles => _profiles;
+
+  List<String> get scheduleSites => List.unmodifiable(_scheduleSites);
 
   bool get isLoading => _isLoading;
 
@@ -103,6 +107,13 @@ class ScheduleProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      try {
+        final fetchedSites = await _supabaseService.getScheduleSites();
+        if (fetchedSites.isNotEmpty) {
+          _scheduleSites = fetchedSites;
+        }
+      } catch (_) {}
+
       if (isAdmin) {
         _schedules = await _repository.getAllSchedules();
         try {
@@ -121,6 +132,39 @@ class ScheduleProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  /// Reloads schedule sites from Supabase.
+  Future<void> loadScheduleSites() async {
+    try {
+      final fetched = await _supabaseService.getScheduleSites();
+      if (fetched.isNotEmpty) {
+        _scheduleSites = fetched;
+        notifyListeners();
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Adds a new schedule site in Supabase and refreshes local list.
+  Future<void> addScheduleSite(String siteName) async {
+    final added = await _supabaseService.addScheduleSite(siteName);
+    if (!_scheduleSites.contains(added)) {
+      _scheduleSites = [..._scheduleSites, added];
+      notifyListeners();
+    }
+  }
+
+  /// Deletes a schedule site from Supabase and refreshes local list.
+  Future<void> deleteScheduleSite(String siteName) async {
+    final normalized = siteName.trim().toUpperCase();
+    await _supabaseService.deleteScheduleSite(normalized);
+    _scheduleSites = _scheduleSites.where((s) => s != normalized).toList();
+    if (_filterSiteName?.toUpperCase() == normalized) {
+      _filterSiteName = null;
+    }
+    notifyListeners();
   }
 
   /// Loads schedules within a date range. Admins see all; users see their own.

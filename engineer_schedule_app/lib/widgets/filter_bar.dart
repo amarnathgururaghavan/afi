@@ -16,7 +16,11 @@ class FilterBar extends StatelessWidget {
     final provider = context.watch<ScheduleProvider>();
 
     final engineerNames = provider.uniqueEngineerNames;
-    final combinedSites = List<String>.from(kPredefinedSites);
+    final combinedSites = List<String>.from(
+      provider.scheduleSites.isNotEmpty
+          ? provider.scheduleSites
+          : kPredefinedSites,
+    );
     for (final s in provider.uniqueSiteNames) {
       if (!combinedSites.contains(s)) {
         combinedSites.add(s);

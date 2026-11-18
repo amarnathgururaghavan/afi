@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
 import '../models/profile_model.dart';
 import '../models/schedule_model.dart';
+import '../providers/schedule_provider.dart';
 import '../utils/constants.dart';
 
 /// A reusable form widget for creating and editing schedule entries.
@@ -52,8 +54,11 @@ class _ScheduleFormState extends State<ScheduleForm> {
 
   bool get _isEditing => widget.initialSchedule != null;
 
-  List<String> get _availableSites {
-    final list = List<String>.from(kPredefinedSites);
+  List<String> _availableSites(BuildContext context) {
+    final providerSites = context.watch<ScheduleProvider>().scheduleSites;
+    final list = List<String>.from(
+      providerSites.isNotEmpty ? providerSites : kPredefinedSites,
+    );
     if (_selectedSiteName != null &&
         _selectedSiteName!.isNotEmpty &&
         !list.contains(_selectedSiteName)) {
@@ -244,7 +249,7 @@ class _ScheduleFormState extends State<ScheduleForm> {
               ),
             ),
             isExpanded: true,
-            items: _availableSites.map((site) {
+            items: _availableSites(context).map((site) {
               return DropdownMenuItem<String>(
                 value: site,
                 child: Text(

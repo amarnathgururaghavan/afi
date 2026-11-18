@@ -10,17 +10,17 @@ import 'package:engineer_schedule_app/providers/schedule_provider.dart';
 import 'package:engineer_schedule_app/screens/dashboard/add_schedule_screen.dart';
 import 'package:engineer_schedule_app/utils/constants.dart';
 import 'package:engineer_schedule_app/utils/file_saver.dart';
+import 'package:engineer_schedule_app/widgets/admin_menu_view.dart';
 import 'package:engineer_schedule_app/widgets/all_schedules_view.dart';
 import 'package:engineer_schedule_app/widgets/filter_bar.dart';
 import 'package:engineer_schedule_app/widgets/monthly_view.dart';
 import 'package:engineer_schedule_app/widgets/my_zonal_view.dart';
-import 'package:engineer_schedule_app/widgets/user_management_view.dart';
 import 'package:engineer_schedule_app/widgets/weekly_view.dart';
 
 /// The 3 primary menus of the application:
 /// - Schedule (Weekly, Monthly, All)
 /// - My Zonal (Maintenance Complaints, Cash Checking)
-/// - Admin Menu (User Management)
+/// - Admin Menu (Users, Schedule Sites, Zonal Sites)
 enum MainMenu { schedule, myZonal, admin }
 
 /// Sub-tabs for Menu: Schedule.
@@ -417,7 +417,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       case MainMenu.myZonal:
         return 'My Zonal • Complaints & Cash Checking';
       case MainMenu.admin:
-        return 'Admin Menu • User Management';
+        return 'Admin Menu • Users & Sites';
     }
   }
 
@@ -489,7 +489,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       case MainMenu.admin:
         if (auth.isAdmin) {
-          return const UserManagementView();
+          return const AdminMenuView();
         } else {
           return Center(
             child: Padding(
@@ -737,7 +737,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   _buildDrawerItem(
                     icon: Icons.store_mall_directory_rounded,
                     title: 'My Zonal',
-                    subtitle: 'Complaints (OWP, TPT, WIM) & Cash Checking',
+                    subtitle: 'Maintenance Complaints & Cash Checking',
                     isSelected: _mainMenu == MainMenu.myZonal,
                     onTap: () {
                       Navigator.of(context).pop();
@@ -764,9 +764,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   ),
                   _buildDrawerItem(
-                    icon: Icons.manage_accounts_rounded,
-                    title: 'User Management',
-                    subtitle: 'Add / Delete users & engineers',
+                    icon: Icons.admin_panel_settings_rounded,
+                    title: 'Admin Menu',
+                    subtitle: 'Users, Schedule Sites & Zonal Sites',
                     isSelected: _mainMenu == MainMenu.admin,
                     onTap: () {
                       Navigator.of(context).pop();

@@ -155,25 +155,34 @@ class _MaintenanceDashboardState extends State<_MaintenanceDashboard> {
                   LayoutBuilder(
                     builder: (context, constraints) {
                       final isWide = constraints.maxWidth > 700;
-                      return isWide
-                          ? Row(
-                              children: [
-                                Expanded(child: _buildSiteCard('OWP', 'Old Washermanpet', zonal)),
-                                const SizedBox(width: 10),
-                                Expanded(child: _buildSiteCard('TPT', 'Tondiarpet', zonal)),
-                                const SizedBox(width: 10),
-                                Expanded(child: _buildSiteCard('WIM', 'Wimco Nagar', zonal)),
-                              ],
-                            )
-                          : Column(
-                              children: [
-                                _buildSiteCard('OWP', 'Old Washermanpet', zonal),
-                                const SizedBox(height: 8),
-                                _buildSiteCard('TPT', 'Tondiarpet', zonal),
-                                const SizedBox(height: 8),
-                                _buildSiteCard('WIM', 'Wimco Nagar', zonal),
-                              ],
-                            );
+                      final sites = zonal.sites;
+                      if (sites.isEmpty) {
+                        return const SizedBox.shrink();
+                      }
+                      if (isWide) {
+                        final cardWidth =
+                            (constraints.maxWidth - 20) / 3;
+                        return Wrap(
+                          spacing: 10,
+                          runSpacing: 10,
+                          children: sites
+                              .map(
+                                (s) => SizedBox(
+                                  width: cardWidth,
+                                  child: _buildSiteCard(s.id, s.name, zonal),
+                                ),
+                              )
+                              .toList(),
+                        );
+                      }
+                      return Column(
+                        children: [
+                          for (int i = 0; i < sites.length; i++) ...[
+                            if (i > 0) const SizedBox(height: 8),
+                            _buildSiteCard(sites[i].id, sites[i].name, zonal),
+                          ],
+                        ],
+                      );
                     },
                   ),
                 ],
@@ -241,19 +250,19 @@ class _MaintenanceDashboardState extends State<_MaintenanceDashboard> {
                       // Site Filter Pill Bar
                       Wrap(
                         spacing: 6,
+                        runSpacing: 6,
                         children: [
                           _buildFilterChip('ALL', 'All Sites', zonal.filterSiteId == 'ALL', () {
                             zonal.setFilterSite('ALL');
                           }),
-                          _buildFilterChip('OWP', 'OWP', zonal.filterSiteId == 'OWP', () {
-                            zonal.setFilterSite('OWP');
-                          }),
-                          _buildFilterChip('TPT', 'TPT', zonal.filterSiteId == 'TPT', () {
-                            zonal.setFilterSite('TPT');
-                          }),
-                          _buildFilterChip('WIM', 'WIM', zonal.filterSiteId == 'WIM', () {
-                            zonal.setFilterSite('WIM');
-                          }),
+                          ...zonal.sites.map(
+                            (site) => _buildFilterChip(
+                              site.id,
+                              site.id,
+                              zonal.filterSiteId == site.id,
+                              () => zonal.setFilterSite(site.id),
+                            ),
+                          ),
                         ],
                       ),
 
@@ -762,13 +771,18 @@ class _MaintenanceDashboardState extends State<_MaintenanceDashboard> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     DropdownButtonFormField<String>(
-                      value: selectedSite,
+                      value: zonal.sites.any((s) => s.id == selectedSite)
+                          ? selectedSite
+                          : (zonal.sites.isNotEmpty ? zonal.sites.first.id : null),
                       decoration: const InputDecoration(labelText: 'Site Outlet'),
-                      items: const [
-                        DropdownMenuItem(value: 'OWP', child: Text('Old Washermanpet (OWP)')),
-                        DropdownMenuItem(value: 'TPT', child: Text('Tondiarpet (TPT)')),
-                        DropdownMenuItem(value: 'WIM', child: Text('Wimco Nagar (WIM)')),
-                      ],
+                      items: zonal.sites
+                          .map(
+                            (s) => DropdownMenuItem(
+                              value: s.id,
+                              child: Text('${s.name} (${s.id})'),
+                            ),
+                          )
+                          .toList(),
                       onChanged: (v) {
                         if (v != null) setDialogState(() => selectedSite = v);
                       },
@@ -876,7 +890,11 @@ class _MaintenanceDashboardState extends State<_MaintenanceDashboard> {
 
   void _showAddComplaintDialog(BuildContext context, ZonalProvider zonal) {
     final formKey = GlobalKey<FormState>();
-    String selectedSite = zonal.filterSiteId != 'ALL' ? zonal.filterSiteId : 'OWP';
+    final defaultSiteId = zonal.sites.isNotEmpty ? zonal.sites.first.id : 'OWP';
+    String selectedSite = zonal.filterSiteId != 'ALL' &&
+            zonal.sites.any((s) => s.id == zonal.filterSiteId)
+        ? zonal.filterSiteId
+        : defaultSiteId;
     String selectedPriority = 'P2 - High';
     final equipCtrl = TextEditingController();
     final catCtrl = TextEditingController(text: 'Forecourt & Dispensing');
@@ -895,14 +913,19 @@ class _MaintenanceDashboardState extends State<_MaintenanceDashboard> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButtonFormField<String>(
-                    value: selectedSite,
+                    value: zonal.sites.any((s) => s.id == selectedSite)
+                        ? selectedSite
+                        : (zonal.sites.isNotEmpty ? zonal.sites.first.id : null),
                     decoration: const InputDecoration(labelText: 'Site Outlet'),
-                    items: const [
-                      DropdownMenuItem(value: 'OWP', child: Text('Old Washermanpet (OWP)')),
-                      DropdownMenuItem(value: 'TPT', child: Text('Tondiarpet (TPT)')),
-                      DropdownMenuItem(value: 'WIM', child: Text('Wimco Nagar (WIM)')),
-                    ],
-                    onChanged: (v) => selectedSite = v ?? 'OWP',
+                    items: zonal.sites
+                        .map(
+                          (s) => DropdownMenuItem(
+                            value: s.id,
+                            child: Text('${s.name} (${s.id})'),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (v) => selectedSite = v ?? defaultSiteId,
                   ),
                   const SizedBox(height: 10),
                   TextFormField(
@@ -1134,14 +1157,19 @@ class _CashVerificationFormState extends State<_CashVerificationForm> {
                       const Text('RETAIL OUTLET', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.silverDark)),
                       const SizedBox(height: 4),
                       DropdownButton<String>(
-                        value: zonal.cashSiteId,
+                        value: zonal.sites.any((s) => s.id == zonal.cashSiteId)
+                            ? zonal.cashSiteId
+                            : (zonal.sites.isNotEmpty ? zonal.sites.first.id : null),
                         isExpanded: true,
                         underline: const SizedBox.shrink(),
-                        items: const [
-                          DropdownMenuItem(value: 'OWP', child: Text('Old Washermanpet (OWP)')),
-                          DropdownMenuItem(value: 'TPT', child: Text('Tondiarpet (TPT)')),
-                          DropdownMenuItem(value: 'WIM', child: Text('Wimco Nagar (WIM)')),
-                        ],
+                        items: zonal.sites
+                            .map(
+                              (s) => DropdownMenuItem(
+                                value: s.id,
+                                child: Text('${s.name} (${s.id})'),
+                              ),
+                            )
+                            .toList(),
                         onChanged: (val) {
                           if (val != null) zonal.setCashSiteId(val);
                         },
