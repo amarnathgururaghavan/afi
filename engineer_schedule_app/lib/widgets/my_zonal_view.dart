@@ -11,7 +11,8 @@ import '../utils/constants.dart';
 /// 2. Maintenance Complaints Dashboard with Realtime Sync & 1-Click Status Cycling
 /// 3. 4-Nozzle Cash Verification & Reconciliation (A1, A2, B1, B2) with Denominations Calculator
 class MyZonalView extends StatefulWidget {
-  const MyZonalView({super.key});
+  final int initialTabIndex;
+  const MyZonalView({super.key, this.initialTabIndex = 0});
 
   @override
   State<MyZonalView> createState() => _MyZonalViewState();
@@ -24,11 +25,24 @@ class _MyZonalViewState extends State<MyZonalView>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    final safeIndex = (widget.initialTabIndex >= 0 && widget.initialTabIndex < 2)
+        ? widget.initialTabIndex
+        : 0;
+    _tabController = TabController(length: 2, vsync: this, initialIndex: safeIndex);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final zonal = Provider.of<ZonalProvider>(context, listen: false);
       zonal.initialize();
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant MyZonalView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialTabIndex != widget.initialTabIndex &&
+        widget.initialTabIndex >= 0 &&
+        widget.initialTabIndex < 2) {
+      _tabController.animateTo(widget.initialTabIndex);
+    }
   }
 
   @override

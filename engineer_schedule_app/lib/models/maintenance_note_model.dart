@@ -69,6 +69,7 @@ class StatusBadgeStyle {
 /// Data model representing a record in the `maintenance_notes` table.
 class MaintenanceNote {
   final String id;
+  final String? userId;
   final int? siteId;
   final String siteName;
   final String complaint;
@@ -80,6 +81,7 @@ class MaintenanceNote {
 
   const MaintenanceNote({
     required this.id,
+    this.userId,
     this.siteId,
     required this.siteName,
     required this.complaint,
@@ -99,6 +101,7 @@ class MaintenanceNote {
   factory MaintenanceNote.fromJson(Map<String, dynamic> json) {
     return MaintenanceNote(
       id: json['id']?.toString() ?? '',
+      userId: json['user_id']?.toString(),
       siteId: json['site_id'] != null
           ? int.tryParse(json['site_id'].toString())
           : null,
@@ -119,6 +122,7 @@ class MaintenanceNote {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
+      if (userId != null) 'user_id': userId,
       if (siteId != null) 'site_id': siteId,
       'site_name': siteName,
       'complaint': complaint,
@@ -140,6 +144,9 @@ class MaintenanceNote {
       'created_at': DateTime.now().toUtc().toIso8601String(),
       'updated_at': DateTime.now().toUtc().toIso8601String(),
     };
+    if (userId != null && userId!.isNotEmpty) {
+      map['user_id'] = userId;
+    }
     if (siteId != null) {
       map['site_id'] = siteId;
     }
@@ -154,6 +161,9 @@ class MaintenanceNote {
       'updated_by': updatedBy.trim(),
       'updated_at': DateTime.now().toUtc().toIso8601String(),
     };
+    if (userId != null && userId!.isNotEmpty) {
+      map['user_id'] = userId;
+    }
     if (siteId != null) {
       map['site_id'] = siteId;
     }
@@ -162,6 +172,7 @@ class MaintenanceNote {
 
   MaintenanceNote copyWith({
     String? id,
+    String? userId,
     int? siteId,
     String? siteName,
     String? complaint,
@@ -173,6 +184,7 @@ class MaintenanceNote {
   }) {
     return MaintenanceNote(
       id: id ?? this.id,
+      userId: userId ?? this.userId,
       siteId: siteId ?? this.siteId,
       siteName: siteName ?? this.siteName,
       complaint: complaint ?? this.complaint,

@@ -12,7 +12,8 @@ import 'user_management_view.dart';
 /// 2. Schedule Sites (add/delete schedule locations synced to Supabase)
 /// 3. Zonal Sites (add/delete My Zonal retail outlets synced to Supabase)
 class AdminMenuView extends StatefulWidget {
-  const AdminMenuView({super.key});
+  final int initialTabIndex;
+  const AdminMenuView({super.key, this.initialTabIndex = 0});
 
   @override
   State<AdminMenuView> createState() => _AdminMenuViewState();
@@ -25,11 +26,24 @@ class _AdminMenuViewState extends State<AdminMenuView>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    final safeIndex = (widget.initialTabIndex >= 0 && widget.initialTabIndex < 3)
+        ? widget.initialTabIndex
+        : 0;
+    _tabController = TabController(length: 3, vsync: this, initialIndex: safeIndex);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ScheduleProvider>().loadScheduleSites().catchError((_) {});
       context.read<ZonalProvider>().loadSites().catchError((_) {});
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant AdminMenuView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialTabIndex != widget.initialTabIndex &&
+        widget.initialTabIndex >= 0 &&
+        widget.initialTabIndex < 3) {
+      _tabController.animateTo(widget.initialTabIndex);
+    }
   }
 
   @override

@@ -11,14 +11,21 @@ class MaintenanceNotesService {
   MaintenanceNotesService({SupabaseClient? client})
       : _client = client ?? Supabase.instance.client;
 
-  /// Fetches all maintenance notes, ordered newest first.
-  /// Optional filters for siteName and status.
+  /// Fetches maintenance notes, ordered newest first.
+  /// If [isAdmin] is false, strictly filters by [userId] so engineers only see their own notes.
   Future<List<MaintenanceNote>> fetchNotes({
     String? siteName,
     String? status,
+    String? userId,
+    bool isAdmin = true,
   }) async {
     try {
       var query = _client.from(DbTables.maintenanceNotes).select('*');
+
+      // Role boundary: Engineer only sees their own notes
+      if (!isAdmin && userId != null && userId.isNotEmpty) {
+        query = query.eq('user_id', userId);
+      }
 
       if (siteName != null && siteName.isNotEmpty && siteName != 'ALL') {
         query = query.ilike('site_name', siteName.trim());

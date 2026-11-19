@@ -38,8 +38,10 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  MainMenu _mainMenu = MainMenu.schedule;
+  MainMenu _mainMenu = MainMenu.maintenanceNotes;
   ScheduleSubTab _scheduleSubTab = ScheduleSubTab.weekly;
+  int _zonalSubTab = 0;
+  int _adminSubTab = 0;
   bool _isSharing = false;
   final ScreenshotController _screenshotController = ScreenshotController();
 
@@ -49,13 +51,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _initializeData());
   }
 
-  /// Ensures user profile is hydrated, then loads schedules based on role.
+  /// Ensures user profile is hydrated, then loads initial data based on role.
   Future<void> _initializeData() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     if (authProvider.profile == null) {
       await authProvider.loadProfile();
     }
     if (!mounted) return;
+
+    // Initialize MaintenanceNotesProvider
+    final notesProvider =
+        Provider.of<MaintenanceNotesProvider>(context, listen: false);
+    notesProvider.initialize(
+      isAdmin: authProvider.isAdmin,
+      userId: authProvider.currentUserId,
+    );
+
     await _loadSchedules();
   }
 
@@ -167,7 +178,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         if (!auth.isAdmin &&
             _mainMenu != MainMenu.schedule &&
             _mainMenu != MainMenu.maintenanceNotes) {
-          _mainMenu = MainMenu.schedule;
+          _mainMenu = MainMenu.maintenanceNotes;
         }
 
         final displayName = auth.profile?.fullName.isNotEmpty == true
@@ -291,49 +302,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               const SizedBox(width: 8),
             ],
-            // In Schedule: 3 Top Tabs (Weekly, Monthly, All / My Schedules)
-            bottom: _mainMenu == MainMenu.schedule
-                ? PreferredSize(
-                    preferredSize: const Size.fromHeight(44),
-                    child: Container(
-                      decoration: const BoxDecoration(
-                        color: AppColors.primaryDark,
-                        border: Border(
-                          top: BorderSide(
-                            color: Color(0x33FFFFFF),
-                            width: 0.8,
-                          ),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          _buildScheduleTopTab(
-                            icon: Icons.view_week_rounded,
-                            label: 'Weekly',
-                            isSelected: _scheduleSubTab == ScheduleSubTab.weekly,
-                            onTap: () => setState(
-                                () => _scheduleSubTab = ScheduleSubTab.weekly),
-                          ),
-                          _buildScheduleTopTab(
-                            icon: Icons.calendar_month_rounded,
-                            label: 'Monthly',
-                            isSelected:
-                                _scheduleSubTab == ScheduleSubTab.monthly,
-                            onTap: () => setState(
-                                () => _scheduleSubTab = ScheduleSubTab.monthly),
-                          ),
-                          _buildScheduleTopTab(
-                            icon: Icons.table_rows_rounded,
-                            label: auth.isAdmin ? 'All Schedules' : 'My Schedules',
-                            isSelected: _scheduleSubTab == ScheduleSubTab.all,
-                            onTap: () => setState(
-                                () => _scheduleSubTab = ScheduleSubTab.all),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                : null,
           ),
           drawer: _buildDrawer(context, auth),
           body: _buildBodyContent(auth, schedule),
@@ -364,58 +332,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildScheduleTopTab({
-    required IconData icon,
-    required String label,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    return Expanded(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          child: Container(
-            height: 44,
-            decoration: BoxDecoration(
-              border: Border(
-                bottom: BorderSide(
-                  color: isSelected ? AppColors.accentLight : Colors.transparent,
-                  width: 3.5,
-                ),
-              ),
-              color: isSelected
-                  ? Colors.white.withValues(alpha: 0.14)
-                  : Colors.transparent,
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  icon,
-                  size: 17,
-                  color: isSelected ? Colors.white : Colors.white70,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                    color: isSelected ? Colors.white : Colors.white70,
-                    letterSpacing: 0.3,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   String _getViewTitle(bool isAdmin) {
     switch (_mainMenu) {
+      case MainMenu.maintenanceNotes:
+        return 'Maintenance Notes • Site-wise Tracking';
       case MainMenu.schedule:
         switch (_scheduleSubTab) {
           case ScheduleSubTab.weekly:
@@ -427,12 +347,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ? 'Schedule • All Schedules'
                 : 'Schedule • My Schedules';
         }
-      case MainMenu.maintenanceNotes:
-        return 'Maintenance Notes • Site-wise Tracking';
       case MainMenu.myZonal:
-        return 'My Zonal • Complaints & Cash Checking';
+        return _zonalSubTab == 0
+            ? 'My Zonal • Maintenance Complaints'
+            : 'My Zonal • Cash Checking';
       case MainMenu.admin:
-        return 'Admin Menu • Users & Sites';
+        switch (_adminSubTab) {
+          case 0:
+            return 'Admin Menu • Users';
+          case 1:
+            return 'Admin Menu • Schedule Sites';
+          case 2:
+            return 'Admin Menu • Zonal Sites';
+          default:
+            return 'Admin Menu • Overview';
+        }
     }
   }
 
@@ -442,7 +371,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (!auth.isAdmin &&
         _mainMenu != MainMenu.schedule &&
         _mainMenu != MainMenu.maintenanceNotes) {
-      _mainMenu = MainMenu.schedule;
+      _mainMenu = MainMenu.maintenanceNotes;
     }
 
     switch (_mainMenu) {
@@ -480,7 +409,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       case MainMenu.myZonal:
         if (auth.isAdmin) {
-          return const MyZonalView();
+          return MyZonalView(
+            key: ValueKey('zonal_view_$_zonalSubTab'),
+            initialTabIndex: _zonalSubTab,
+          );
         } else {
           return const Center(
             child: Padding(
@@ -509,7 +441,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       case MainMenu.admin:
         if (auth.isAdmin) {
-          return const AdminMenuView();
+          return AdminMenuView(
+            key: ValueKey('admin_view_$_adminSubTab'),
+            initialTabIndex: _adminSubTab,
+          );
         } else {
           return const Center(
             child: Padding(
@@ -702,48 +637,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
 
-          // Drawer Navigation Items: EXACTLY 3 MENUS
+          // Drawer Navigation Items (All sections collapsed by default, Maintenance Notes is default)
           Expanded(
             child: ListView(
               padding:
                   const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
               children: [
-                // ── SCHEDULE ─────────────────────────────────────────────────
+                // ── 1. MAINTENANCE NOTES (DEFAULT DASHBOARD) ─────────────────
                 const Padding(
                   padding: EdgeInsets.only(left: 14, bottom: 4, top: 4),
                   child: Text(
-                    'SCHEDULE',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.silverDark,
-                      letterSpacing: 1.0,
-                    ),
-                  ),
-                ),
-                _buildDrawerItem(
-                  icon: Icons.calendar_today_rounded,
-                  title: 'Schedule',
-                  subtitle: auth.isAdmin
-                      ? 'Weekly, Monthly & All Schedules'
-                      : 'Weekly, Monthly & My Schedules',
-                  isSelected: _mainMenu == MainMenu.schedule,
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    setState(() => _mainMenu = MainMenu.schedule);
-                  },
-                ),
-
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                  child: Divider(color: AppColors.silverLight),
-                ),
-
-                // ── MAINTENANCE NOTES ────────────────────────────────────────
-                const Padding(
-                  padding: EdgeInsets.only(left: 14, bottom: 4),
-                  child: Text(
-                    'MAINTENANCE NOTES',
+                    'MAIN DASHBOARD',
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w800,
@@ -757,20 +661,89 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   title: 'Maintenance Notes',
                   subtitle: 'Site-wise complaints & status tracking',
                   isSelected: _mainMenu == MainMenu.maintenanceNotes,
+                  badgeText: 'Default',
                   onTap: () {
                     Navigator.of(context).pop();
                     setState(() => _mainMenu = MainMenu.maintenanceNotes);
                   },
                 ),
 
-                // ── ADMIN ONLY SECTIONS: MY ZONAL & ADMIN MENU ───────────────
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  child: Divider(color: AppColors.silverLight),
+                ),
+
+                // ── 2. SCHEDULE (COLLAPSED VIEW) ─────────────────────────────
+                const Padding(
+                  padding: EdgeInsets.only(left: 14, bottom: 4),
+                  child: Text(
+                    'SCHEDULE',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.silverDark,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                ),
+                _buildDrawerExpansionTile(
+                  icon: Icons.calendar_today_rounded,
+                  title: 'Schedule',
+                  subtitle: auth.isAdmin
+                      ? 'Weekly, Monthly & All Schedules'
+                      : 'Weekly, Monthly & My Schedules',
+                  isAnyChildSelected: _mainMenu == MainMenu.schedule,
+                  children: [
+                    _buildDrawerSubItem(
+                      icon: Icons.view_week_rounded,
+                      title: 'Weekly View',
+                      isSelected: _mainMenu == MainMenu.schedule &&
+                          _scheduleSubTab == ScheduleSubTab.weekly,
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        setState(() {
+                          _mainMenu = MainMenu.schedule;
+                          _scheduleSubTab = ScheduleSubTab.weekly;
+                        });
+                      },
+                    ),
+                    _buildDrawerSubItem(
+                      icon: Icons.calendar_month_rounded,
+                      title: 'Monthly View',
+                      isSelected: _mainMenu == MainMenu.schedule &&
+                          _scheduleSubTab == ScheduleSubTab.monthly,
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        setState(() {
+                          _mainMenu = MainMenu.schedule;
+                          _scheduleSubTab = ScheduleSubTab.monthly;
+                        });
+                      },
+                    ),
+                    _buildDrawerSubItem(
+                      icon: Icons.table_rows_rounded,
+                      title: auth.isAdmin ? 'All Schedules' : 'My Schedules',
+                      isSelected: _mainMenu == MainMenu.schedule &&
+                          _scheduleSubTab == ScheduleSubTab.all,
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        setState(() {
+                          _mainMenu = MainMenu.schedule;
+                          _scheduleSubTab = ScheduleSubTab.all;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+
+                // ── 3. ADMIN ONLY SECTIONS: MY ZONAL & ADMIN MENU ───────────
                 if (auth.isAdmin) ...[
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                     child: Divider(color: AppColors.silverLight),
                   ),
 
-                  // ── MY ZONAL ─────────────────────────────────────────────
+                  // ── MY ZONAL (COLLAPSED VIEW) ─────────────────────────────
                   const Padding(
                     padding: EdgeInsets.only(left: 14, bottom: 4),
                     child: Text(
@@ -783,15 +756,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                     ),
                   ),
-                  _buildDrawerItem(
+                  _buildDrawerExpansionTile(
                     icon: Icons.store_mall_directory_rounded,
                     title: 'My Zonal',
-                    subtitle: 'Maintenance Complaints & Cash Checking',
-                    isSelected: _mainMenu == MainMenu.myZonal,
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      setState(() => _mainMenu = MainMenu.myZonal);
-                    },
+                    subtitle: 'Complaints & Cash Checking',
+                    isAnyChildSelected: _mainMenu == MainMenu.myZonal,
+                    children: [
+                      _buildDrawerSubItem(
+                        icon: Icons.build_circle_outlined,
+                        title: 'Maintenance Complaints',
+                        isSelected: _mainMenu == MainMenu.myZonal &&
+                            _zonalSubTab == 0,
+                        onTap: () {
+                          Navigator.of(context).pop();
+                          setState(() {
+                            _mainMenu = MainMenu.myZonal;
+                            _zonalSubTab = 0;
+                          });
+                        },
+                      ),
+                      _buildDrawerSubItem(
+                        icon: Icons.point_of_sale_rounded,
+                        title: 'Cash Checking',
+                        isSelected: _mainMenu == MainMenu.myZonal &&
+                            _zonalSubTab == 1,
+                        onTap: () {
+                          Navigator.of(context).pop();
+                          setState(() {
+                            _mainMenu = MainMenu.myZonal;
+                            _zonalSubTab = 1;
+                          });
+                        },
+                      ),
+                    ],
                   ),
 
                   const Padding(
@@ -799,7 +796,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     child: Divider(color: AppColors.silverLight),
                   ),
 
-                  // ── ADMIN MENU ───────────────────────────────────────────
+                  // ── ADMIN MENU (COLLAPSED VIEW) ───────────────────────────
                   const Padding(
                     padding: EdgeInsets.only(left: 14, bottom: 4),
                     child: Text(
@@ -812,15 +809,52 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                     ),
                   ),
-                  _buildDrawerItem(
+                  _buildDrawerExpansionTile(
                     icon: Icons.admin_panel_settings_rounded,
                     title: 'Admin Menu',
                     subtitle: 'Users, Schedule Sites & Zonal Sites',
-                    isSelected: _mainMenu == MainMenu.admin,
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      setState(() => _mainMenu = MainMenu.admin);
-                    },
+                    isAnyChildSelected: _mainMenu == MainMenu.admin,
+                    children: [
+                      _buildDrawerSubItem(
+                        icon: Icons.manage_accounts_rounded,
+                        title: 'Users',
+                        isSelected: _mainMenu == MainMenu.admin &&
+                            _adminSubTab == 0,
+                        onTap: () {
+                          Navigator.of(context).pop();
+                          setState(() {
+                            _mainMenu = MainMenu.admin;
+                            _adminSubTab = 0;
+                          });
+                        },
+                      ),
+                      _buildDrawerSubItem(
+                        icon: Icons.location_city_rounded,
+                        title: 'Schedule Sites',
+                        isSelected: _mainMenu == MainMenu.admin &&
+                            _adminSubTab == 1,
+                        onTap: () {
+                          Navigator.of(context).pop();
+                          setState(() {
+                            _mainMenu = MainMenu.admin;
+                            _adminSubTab = 1;
+                          });
+                        },
+                      ),
+                      _buildDrawerSubItem(
+                        icon: Icons.storefront_rounded,
+                        title: 'Zonal Sites',
+                        isSelected: _mainMenu == MainMenu.admin &&
+                            _adminSubTab == 2,
+                        onTap: () {
+                          Navigator.of(context).pop();
+                          setState(() {
+                            _mainMenu = MainMenu.admin;
+                            _adminSubTab = 2;
+                          });
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ],
@@ -857,6 +891,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     required String subtitle,
     required bool isSelected,
     required VoidCallback onTap,
+    String? badgeText,
   }) {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 2),
@@ -872,13 +907,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
           color: isSelected ? AppColors.primary : AppColors.silverDark,
           size: 22,
         ),
-        title: Text(
-          title,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-            color: isSelected ? AppColors.primary : AppColors.textPrimary,
-          ),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                  color: isSelected ? AppColors.primary : AppColors.textPrimary,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (badgeText != null) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color:
+                      isSelected ? AppColors.primary : AppColors.forestMint,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  badgeText,
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w700,
+                    color: isSelected ? Colors.white : AppColors.primary,
+                  ),
+                ),
+              ),
+            ],
+          ],
         ),
         subtitle: Text(
           subtitle,
@@ -888,6 +951,110 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 isSelected ? AppColors.primary : AppColors.textSecondary,
           ),
         ),
+        trailing: isSelected
+            ? const Icon(Icons.check_circle_rounded,
+                color: AppColors.primary, size: 18)
+            : null,
+        onTap: onTap,
+      ),
+    );
+  }
+
+  Widget _buildDrawerExpansionTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required bool isAnyChildSelected,
+    required List<Widget> children,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 2),
+      decoration: BoxDecoration(
+        color: isAnyChildSelected
+            ? AppColors.forestMint.withValues(alpha: 0.35)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(
+          dividerColor: Colors.transparent,
+          splashColor: Colors.transparent,
+        ),
+        child: ExpansionTile(
+          initiallyExpanded: false,
+          tilePadding:
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+          childrenPadding:
+              const EdgeInsets.only(left: 12, right: 8, bottom: 6),
+          leading: Icon(
+            icon,
+            color:
+                isAnyChildSelected ? AppColors.primary : AppColors.silverDark,
+            size: 22,
+          ),
+          title: Text(
+            title,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight:
+                  isAnyChildSelected ? FontWeight.w700 : FontWeight.w600,
+              color: isAnyChildSelected
+                  ? AppColors.primary
+                  : AppColors.textPrimary,
+            ),
+          ),
+          subtitle: Text(
+            subtitle,
+            style: TextStyle(
+              fontSize: 11,
+              color: isAnyChildSelected
+                  ? AppColors.primary
+                  : AppColors.textSecondary,
+            ),
+          ),
+          iconColor: AppColors.primary,
+          collapsedIconColor: AppColors.silverDark,
+          shape: const Border(),
+          collapsedShape: const Border(),
+          children: children,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDrawerSubItem({
+    required IconData icon,
+    required String title,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 2),
+      decoration: BoxDecoration(
+        color: isSelected ? AppColors.primary : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: ListTile(
+        dense: true,
+        visualDensity: const VisualDensity(horizontal: -2, vertical: -2),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+        leading: Icon(
+          icon,
+          size: 18,
+          color: isSelected ? Colors.white : AppColors.silverDark,
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+            color: isSelected ? Colors.white : AppColors.textPrimary,
+          ),
+        ),
+        trailing: isSelected
+            ? const Icon(Icons.check_rounded, color: Colors.white, size: 16)
+            : null,
         onTap: onTap,
       ),
     );

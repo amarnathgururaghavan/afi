@@ -30,8 +30,12 @@ class _MaintenanceNotesScreenState extends State<MaintenanceNotesScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      final auth = context.read<AuthProvider>();
       final notesProvider = context.read<MaintenanceNotesProvider>();
-      notesProvider.initialize();
+      notesProvider.initialize(
+        isAdmin: auth.isAdmin,
+        userId: auth.currentUserId,
+      );
 
       // Ensure schedule sites are loaded for the site dropdown
       final scheduleProvider = context.read<ScheduleProvider>();
@@ -304,6 +308,8 @@ class _MaintenanceNotesScreenState extends State<MaintenanceNotesScreen> {
                                   dialogError = null;
                                 });
 
+                                final auth = context.read<AuthProvider>();
+                                final currentUserId = auth.currentUserId;
                                 final provider =
                                     context.read<MaintenanceNotesProvider>();
                                 final userName = _getUserDisplayName(context);
@@ -319,6 +325,7 @@ class _MaintenanceNotesScreenState extends State<MaintenanceNotesScreen> {
                                           complaintController.text.trim(),
                                       status: selectedStatus,
                                       userName: userName,
+                                      userId: note.userId ?? currentUserId,
                                       siteId: note.siteId,
                                       createdAt: note.createdAt,
                                       createdBy: note.createdBy,
@@ -330,6 +337,7 @@ class _MaintenanceNotesScreenState extends State<MaintenanceNotesScreen> {
                                           complaintController.text.trim(),
                                       status: selectedStatus,
                                       userName: userName,
+                                      userId: currentUserId,
                                     );
                                   }
 
@@ -570,64 +578,42 @@ class _MaintenanceNotesScreenState extends State<MaintenanceNotesScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Row: Title, Badge, Add Note Button
+          // Row: Title & Badge (top Add Note removed; only bottom button active per requirement)
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  const Text(
-                    'Maintenance Notes',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: totalActive > 0
-                          ? const Color(0xFFFEE2E2)
-                          : AppColors.forestMint,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: totalActive > 0
-                            ? const Color(0xFFFCA5A5)
-                            : AppColors.silverLight,
-                      ),
-                    ),
-                    child: Text(
-                      '$totalActive Open / $totalNotes Total',
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w800,
-                        color: totalActive > 0
-                            ? const Color(0xFFDC2626)
-                            : AppColors.primary,
-                      ),
-                    ),
-                  ),
-                ],
+              const Text(
+                'Maintenance Notes',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
+                ),
               ),
-              FilledButton.icon(
-                onPressed: () => _showNoteDialog(),
-                icon: const Icon(Icons.add_rounded, size: 16),
-                label: const Text('Add Note'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 2,
+                ),
+                decoration: BoxDecoration(
+                  color: totalActive > 0
+                      ? const Color(0xFFFEE2E2)
+                      : AppColors.forestMint,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: totalActive > 0
+                        ? const Color(0xFFFCA5A5)
+                        : AppColors.silverLight,
                   ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '$totalActive Open / $totalNotes Total',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w800,
+                    color: totalActive > 0
+                        ? const Color(0xFFDC2626)
+                        : AppColors.primary,
                   ),
                 ),
               ),

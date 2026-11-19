@@ -32,14 +32,18 @@ class MaintenanceNotesProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
 
+  // Track the last loaded role scope
+  bool _lastIsAdmin = true;
+  String? _lastUserId;
+
   // Filters & Search
   String _filterSite = 'ALL';
   String _filterStatus = 'ALL';
   bool _hideClosed = false;
   String _searchQuery = '';
 
-  // Track expanded/collapsed sites (by default all sites are expanded)
-  final Set<String> _collapsedSites = {};
+  // Track expanded sites — by default all sites start in COLLAPSED view per user requirement
+  final Set<String> _expandedSites = {};
 
   // ─── Getters ────────────────────────────────────────────────────────────────
   bool get isLoading => _isLoading;
@@ -50,7 +54,8 @@ class MaintenanceNotesProvider extends ChangeNotifier {
   bool get hideClosed => _hideClosed;
   String get searchQuery => _searchQuery;
 
-  bool isSiteExpanded(String siteName) => !_collapsedSites.contains(siteName);
+  /// Default is collapsed: returns true only if explicitly expanded by user.
+  bool isSiteExpanded(String siteName) => _expandedSites.contains(siteName);
 
   /// Unique site names that currently have maintenance notes.
   List<String> get noteSites {
@@ -133,8 +138,10 @@ class MaintenanceNotesProvider extends ChangeNotifier {
 
   // ─── Initialization & Loading ───────────────────────────────────────────────
 
-  Future<void> initialize() async {
-    await loadNotes();
+  Future<void> initialize({bool isAdmin = true, String? userId}) async {
+    _lastIsAdmin = isAdmin;
+    _lastUserId = userId;
+    await loadNotes(isAdmin: isAdmin, userId: userId);
     _setupRealtime();
   }
 
@@ -142,21 +149,32 @@ class MaintenanceNotesProvider extends ChangeNotifier {
     _subscription?.unsubscribe();
     try {
       _subscription = _service.subscribeToNotes(() {
-        loadNotes(silent: true);
+        loadNotes(silent: true, isAdmin: _lastIsAdmin, userId: _lastUserId);
       });
     } catch (e) {
       debugPrint('Notes realtime subscription failed or unavailable: $e');
     }
   }
 
-  Future<void> loadNotes({bool silent = false}) async {
+  /// Loads maintenance notes. If [isAdmin] is false, only loads notes for [userId].
+  Future<void> loadNotes({
+    bool silent = false,
+    bool? isAdmin,
+    String? userId,
+  }) async {
+    if (isAdmin != null) _lastIsAdmin = isAdmin;
+    if (userId != null) _lastUserId = userId;
+
     if (!silent) {
       _isLoading = true;
       notifyListeners();
     }
 
     try {
-      _allNotes = await _service.fetchNotes();
+      _allNotes = await _service.fetchNotes(
+        isAdmin: _lastIsAdmin,
+        userId: _lastUserId,
+      );
       _error = null;
     } catch (e) {
       _error = e.toString().replaceAll('Exception: ', '');
@@ -199,23 +217,23 @@ class MaintenanceNotesProvider extends ChangeNotifier {
   }
 
   void toggleSiteExpanded(String siteName) {
-    if (_collapsedSites.contains(siteName)) {
-      _collapsedSites.remove(siteName);
+    if (_expandedSites.contains(siteName)) {
+      _expandedSites.remove(siteName);
     } else {
-      _collapsedSites.add(siteName);
+      _expandedSites.add(siteName);
     }
     notifyListeners();
   }
 
   void expandAll() {
-    _collapsedSites.clear();
+    for (final note in _allNotes) {
+      _expandedSites.add(note.siteName);
+    }
     notifyListeners();
   }
 
   void collapseAll() {
-    for (final note in _allNotes) {
-      _collapsedSites.add(note.siteName);
-    }
+    _expandedSites.clear();
     notifyListeners();
   }
 
@@ -226,6 +244,7 @@ class MaintenanceNotesProvider extends ChangeNotifier {
     required String complaint,
     required String status,
     required String userName,
+    String? userId,
     int? siteId,
   }) async {
     _isLoading = true;
@@ -235,6 +254,7 @@ class MaintenanceNotesProvider extends ChangeNotifier {
       final now = DateTime.now();
       final newNote = MaintenanceNote(
         id: '',
+        userId: userId ?? _lastUserId,
         siteId: siteId,
         siteName: siteName.trim().toUpperCase(),
         complaint: complaint.trim(),
@@ -264,6 +284,7 @@ class MaintenanceNotesProvider extends ChangeNotifier {
     required String complaint,
     required String status,
     required String userName,
+    String? userId,
     int? siteId,
     DateTime? createdAt,
     String? createdBy,
@@ -274,6 +295,7 @@ class MaintenanceNotesProvider extends ChangeNotifier {
     try {
       final noteToUpdate = MaintenanceNote(
         id: id,
+        userId: userId ?? _lastUserId,
         siteId: siteId,
         siteName: siteName.trim().toUpperCase(),
         complaint: complaint.trim(),
