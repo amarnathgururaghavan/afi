@@ -19,17 +19,10 @@ class AdminMenuView extends StatefulWidget {
   State<AdminMenuView> createState() => _AdminMenuViewState();
 }
 
-class _AdminMenuViewState extends State<AdminMenuView>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-
+class _AdminMenuViewState extends State<AdminMenuView> {
   @override
   void initState() {
     super.initState();
-    final safeIndex = (widget.initialTabIndex >= 0 && widget.initialTabIndex < 3)
-        ? widget.initialTabIndex
-        : 0;
-    _tabController = TabController(length: 3, vsync: this, initialIndex: safeIndex);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ScheduleProvider>().loadScheduleSites().catchError((_) {});
       context.read<ZonalProvider>().loadSites().catchError((_) {});
@@ -37,63 +30,18 @@ class _AdminMenuViewState extends State<AdminMenuView>
   }
 
   @override
-  void didUpdateWidget(covariant AdminMenuView oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.initialTabIndex != widget.initialTabIndex &&
-        widget.initialTabIndex >= 0 &&
-        widget.initialTabIndex < 3) {
-      _tabController.animateTo(widget.initialTabIndex);
-    }
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Container(
-          color: AppColors.surface,
-          child: TabBar(
-            controller: _tabController,
-            indicatorColor: AppColors.primary,
-            indicatorWeight: 3,
-            labelColor: AppColors.primary,
-            unselectedLabelColor: AppColors.textSecondary,
-            labelStyle: const TextStyle(
-              fontWeight: FontWeight.w700,
-              fontSize: 12.5,
-            ),
-            tabs: const [
-              Tab(
-                icon: Icon(Icons.manage_accounts_rounded, size: 19),
-                text: 'Users',
-              ),
-              Tab(
-                icon: Icon(Icons.location_on_rounded, size: 19),
-                text: 'Schedule Sites',
-              ),
-              Tab(
-                icon: Icon(Icons.store_mall_directory_rounded, size: 19),
-                text: 'Zonal Sites',
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            children: const [
-              UserManagementView(),
-              _ScheduleSitesTab(),
-              _ZonalSitesTab(),
-            ],
-          ),
-        ),
+    final activeIndex =
+        (widget.initialTabIndex >= 0 && widget.initialTabIndex < 3)
+            ? widget.initialTabIndex
+            : 0;
+
+    return IndexedStack(
+      index: activeIndex,
+      children: const [
+        UserManagementView(),
+        _ScheduleSitesTab(),
+        _ZonalSitesTab(),
       ],
     );
   }

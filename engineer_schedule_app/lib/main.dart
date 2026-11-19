@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -11,6 +13,19 @@ import 'screens/auth/login_screen.dart';
 import 'screens/dashboard/dashboard_screen.dart';
 import 'screens/dashboard/maintenance_notes_screen.dart';
 import 'utils/constants.dart';
+
+/// Custom scroll behavior enabling drag-to-scroll across desktop browsers and touch devices.
+class AppScrollBehavior extends MaterialScrollBehavior {
+  const AppScrollBehavior();
+
+  @override
+  Set<PointerDeviceKind> get dragDevices => {
+        PointerDeviceKind.touch,
+        PointerDeviceKind.mouse,
+        PointerDeviceKind.trackpad,
+        PointerDeviceKind.stylus,
+      };
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -39,6 +54,7 @@ class EngineerScheduleApp extends StatelessWidget {
       child: MaterialApp(
         title: appName,
         debugShowCheckedModeBanner: false,
+        scrollBehavior: const AppScrollBehavior(),
         theme: _buildTheme(),
         initialRoute: '/',
         routes: {

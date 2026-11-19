@@ -18,17 +18,10 @@ class MyZonalView extends StatefulWidget {
   State<MyZonalView> createState() => _MyZonalViewState();
 }
 
-class _MyZonalViewState extends State<MyZonalView>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-
+class _MyZonalViewState extends State<MyZonalView> {
   @override
   void initState() {
     super.initState();
-    final safeIndex = (widget.initialTabIndex >= 0 && widget.initialTabIndex < 2)
-        ? widget.initialTabIndex
-        : 0;
-    _tabController = TabController(length: 2, vsync: this, initialIndex: safeIndex);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final zonal = Provider.of<ZonalProvider>(context, listen: false);
       zonal.initialize();
@@ -36,63 +29,19 @@ class _MyZonalViewState extends State<MyZonalView>
   }
 
   @override
-  void didUpdateWidget(covariant MyZonalView oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.initialTabIndex != widget.initialTabIndex &&
-        widget.initialTabIndex >= 0 &&
-        widget.initialTabIndex < 2) {
-      _tabController.animateTo(widget.initialTabIndex);
-    }
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Consumer<ZonalProvider>(
       builder: (context, zonal, _) {
-        return Column(
-          children: [
-            // Top Zonal Sub-Tab Bar
-            Container(
-              color: AppColors.surface,
-              child: TabBar(
-                controller: _tabController,
-                indicatorColor: AppColors.primary,
-                indicatorWeight: 3,
-                labelColor: AppColors.primary,
-                unselectedLabelColor: AppColors.textSecondary,
-                labelStyle: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                ),
-                tabs: const [
-                  Tab(
-                    icon: Icon(Icons.build_circle_outlined, size: 20),
-                    text: 'Maintenance Complaints',
-                  ),
-                  Tab(
-                    icon: Icon(Icons.point_of_sale_rounded, size: 20),
-                    text: 'Cash Checking',
-                  ),
-                ],
-              ),
-            ),
+        final activeIndex =
+            (widget.initialTabIndex >= 0 && widget.initialTabIndex < 2)
+                ? widget.initialTabIndex
+                : 0;
 
-            // Tab Content
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _MaintenanceDashboard(zonal: zonal),
-                  _CashCheckingDashboard(zonal: zonal),
-                ],
-              ),
-            ),
+        return IndexedStack(
+          index: activeIndex,
+          children: [
+            _MaintenanceDashboard(zonal: zonal),
+            _CashCheckingDashboard(zonal: zonal),
           ],
         );
       },

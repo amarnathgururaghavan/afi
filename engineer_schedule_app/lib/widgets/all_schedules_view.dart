@@ -27,15 +27,62 @@ class AllSchedulesView extends StatefulWidget {
 
 class _AllSchedulesViewState extends State<AllSchedulesView> {
   final TextEditingController _searchController = TextEditingController();
+  late final ScrollController _verticalScrollController;
+  late final ScrollController _horizontalScrollController;
   String _searchQuery = '';
   String? _selectedEngineerFilter;
   String? _selectedSiteFilter;
   bool _sortAscending = true;
+  bool _canScrollDown = true;
+  bool _canScrollUp = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _verticalScrollController = ScrollController();
+    _horizontalScrollController = ScrollController();
+
+    _verticalScrollController.addListener(() {
+      if (!_verticalScrollController.hasClients) return;
+      final maxScroll = _verticalScrollController.position.maxScrollExtent;
+      final currentScroll = _verticalScrollController.offset;
+      final canDown = currentScroll < maxScroll - 20;
+      final canUp = currentScroll > 20;
+      if (canDown != _canScrollDown || canUp != _canScrollUp) {
+        setState(() {
+          _canScrollDown = canDown;
+          _canScrollUp = canUp;
+        });
+      }
+    });
+  }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _verticalScrollController.dispose();
+    _horizontalScrollController.dispose();
     super.dispose();
+  }
+
+  void _scrollToTop() {
+    if (_verticalScrollController.hasClients) {
+      _verticalScrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
+  void _scrollToBottom() {
+    if (_verticalScrollController.hasClients) {
+      _verticalScrollController.animateTo(
+        _verticalScrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeOut,
+      );
+    }
   }
 
   Future<void> _openAddSchedule(BuildContext context) async {
@@ -463,6 +510,8 @@ class _AllSchedulesViewState extends State<AllSchedulesView> {
   }
 
   /// Builds the structured DataTable with Name, Date, Site, and Actions (Edit/Delete).
+  /// Features prominent, interactive vertical and horizontal scrollbars and quick-scroll controls
+  /// for optimal desktop web browsing and viewing of full schedule data.
   Widget _buildScheduleDataTable(
     BuildContext context,
     List<ScheduleModel> schedules,
@@ -471,279 +520,347 @@ class _AllSchedulesViewState extends State<AllSchedulesView> {
   ) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 850),
-              child: Card(
-                elevation: 0,
-                color: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  side: const BorderSide(color: AppColors.silverLight, width: 1.2),
+        return Stack(
+          children: [
+            // Vertical Scrollbar with visible thumb for web & desktop full data viewing
+            Scrollbar(
+              controller: _verticalScrollController,
+              thumbVisibility: true,
+              trackVisibility: true,
+              interactive: true,
+              thickness: 10,
+              radius: const Radius.circular(5),
+              child: SingleChildScrollView(
+                controller: _verticalScrollController,
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  AppSpacing.md,
+                  AppSpacing.md,
+                  100,
                 ),
-                clipBehavior: Clip.antiAlias,
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
+                child: Center(
                   child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minWidth: constraints.maxWidth > 0
-                          ? constraints.maxWidth - (AppSpacing.md * 2)
-                          : 650,
-                    ),
-                    child: DataTable(
-                      headingRowColor: const WidgetStatePropertyAll(
-                        AppColors.forestMint,
+                    constraints: const BoxConstraints(maxWidth: 850),
+                    child: Card(
+                      elevation: 0,
+                      color: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                        side: const BorderSide(
+                          color: AppColors.silverLight,
+                          width: 1.2,
+                        ),
                       ),
-                      headingRowHeight: 46,
-                      dataRowMinHeight: 52,
-                      dataRowMaxHeight: 58,
-                      horizontalMargin: 16,
-                      columnSpacing: 20,
-                      columns: [
-                        // Column 1: NAME
-                        const DataColumn(
-                          label: Row(
-                            children: [
-                              Icon(
-                                Icons.person_outline,
-                                size: 18,
-                                color: AppColors.primary,
+                      clipBehavior: Clip.antiAlias,
+                      child: Scrollbar(
+                        controller: _horizontalScrollController,
+                        thumbVisibility: true,
+                        trackVisibility: true,
+                        interactive: true,
+                        thickness: 8,
+                        radius: const Radius.circular(4),
+                        child: SingleChildScrollView(
+                          controller: _horizontalScrollController,
+                          scrollDirection: Axis.horizontal,
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(
+                              minWidth: constraints.maxWidth > 0
+                                  ? constraints.maxWidth - (AppSpacing.md * 2)
+                                  : 650,
+                            ),
+                            child: DataTable(
+                              headingRowColor: const WidgetStatePropertyAll(
+                                AppColors.forestMint,
                               ),
-                              SizedBox(width: 8),
-                              Text(
-                                'Name',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.primaryDark,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        // Column 2: DATE
-                        const DataColumn(
-                          label: Row(
-                            children: [
-                              Icon(
-                                Icons.calendar_today_outlined,
-                                size: 18,
-                                color: AppColors.primary,
-                              ),
-                              SizedBox(width: 8),
-                              Text(
-                                'Date',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.primaryDark,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        // Column 3: SITE
-                        const DataColumn(
-                          label: Row(
-                            children: [
-                              Icon(
-                                Icons.local_gas_station_outlined,
-                                size: 18,
-                                color: AppColors.primary,
-                              ),
-                              SizedBox(width: 8),
-                              Text(
-                                'Site',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.primaryDark,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        // Column 4: ACTIONS (Admin only)
-                        if (isAdmin)
-                          const DataColumn(
-                            label: Row(
-                              children: [
-                                Icon(
-                                  Icons.settings_outlined,
-                                  size: 18,
-                                  color: AppColors.primary,
-                                ),
-                                SizedBox(width: 8),
-                                Text(
-                                  'Actions',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.primaryDark,
+                              headingRowHeight: 46,
+                              dataRowMinHeight: 52,
+                              dataRowMaxHeight: 58,
+                              horizontalMargin: 16,
+                              columnSpacing: 20,
+                              columns: [
+                                // Column 1: NAME
+                                const DataColumn(
+                                  label: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.person_outline,
+                                        size: 18,
+                                        color: AppColors.primary,
+                                      ),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        'Name',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          color: AppColors.primaryDark,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
+
+                                // Column 2: DATE
+                                const DataColumn(
+                                  label: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.calendar_today_outlined,
+                                        size: 18,
+                                        color: AppColors.primary,
+                                      ),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        'Date',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          color: AppColors.primaryDark,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                                // Column 3: SITE
+                                const DataColumn(
+                                  label: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.local_gas_station_outlined,
+                                        size: 18,
+                                        color: AppColors.primary,
+                                      ),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        'Site',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          color: AppColors.primaryDark,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                                // Column 4: ACTIONS (Admin only)
+                                if (isAdmin)
+                                  const DataColumn(
+                                    label: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.settings_outlined,
+                                          size: 18,
+                                          color: AppColors.primary,
+                                        ),
+                                        SizedBox(width: 8),
+                                        Text(
+                                          'Actions',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.primaryDark,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                               ],
+                              rows: schedules.map((schedule) {
+                                final initials = schedule.engineerName.isNotEmpty
+                                    ? schedule.engineerName
+                                        .trim()
+                                        .split(RegExp(r'\s+'))
+                                        .take(2)
+                                        .map((s) => s.isNotEmpty ? s[0].toUpperCase() : '')
+                                        .join()
+                                    : 'E';
+
+                                final dateFormatted = DateFormat('dd-MM-yyyy (EEE)')
+                                    .format(schedule.scheduleDate);
+
+                                return DataRow(
+                                  cells: [
+                                    // 1. NAME Cell
+                                    DataCell(
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          CircleAvatar(
+                                            radius: 14,
+                                            backgroundColor: AppColors.forestMint,
+                                            child: Text(
+                                              initials,
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700,
+                                                color: AppColors.primary,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Text(
+                                            schedule.engineerName,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 13,
+                                              color: AppColors.textPrimary,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+
+                                    // 2. DATE Cell
+                                    DataCell(
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.surfaceSilver,
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(
+                                            color: AppColors.silverLight,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(
+                                              Icons.calendar_month_outlined,
+                                              size: 14,
+                                              color: AppColors.silverDark,
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              dateFormatted,
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                                color: AppColors.textPrimary,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+
+                                    // 3. SITE Cell
+                                    DataCell(
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(
+                                            Icons.local_gas_station_rounded,
+                                            size: 16,
+                                            color: AppColors.accentOrange,
+                                          ),
+                                          const SizedBox(width: 6),
+                                          ConstrainedBox(
+                                            constraints: const BoxConstraints(
+                                              maxWidth: 220,
+                                            ),
+                                            child: Text(
+                                              schedule.siteName.toUpperCase(),
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w700,
+                                                color: AppColors.textPrimary,
+                                                letterSpacing: 0.3,
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+
+                                    // 4. ACTIONS Cell: EDIT & DELETE (Admin only)
+                                    if (isAdmin)
+                                      DataCell(
+                                        Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            // Edit Button
+                                            IconButton(
+                                              icon: const Icon(
+                                                Icons.edit_outlined,
+                                                size: 18,
+                                                color: AppColors.primary,
+                                              ),
+                                              tooltip: 'Edit Schedule',
+                                              visualDensity: VisualDensity.compact,
+                                              onPressed: () =>
+                                                  _openEditSchedule(context, schedule),
+                                            ),
+                                            const SizedBox(width: 4),
+                                            // Delete Button
+                                            IconButton(
+                                              icon: const Icon(
+                                                Icons.delete_outline,
+                                                size: 18,
+                                                color: AppColors.error,
+                                              ),
+                                              tooltip: 'Delete Schedule',
+                                              visualDensity: VisualDensity.compact,
+                                              onPressed: () => _confirmDelete(
+                                                context,
+                                                schedule,
+                                                scheduleProvider,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                  ],
+                                );
+                              }).toList(),
                             ),
                           ),
-                      ],
-                      rows: schedules.map((schedule) {
-                        final initials = schedule.engineerName.isNotEmpty
-                            ? schedule.engineerName
-                                .trim()
-                                .split(RegExp(r'\s+'))
-                                .take(2)
-                                .map((s) => s.isNotEmpty ? s[0].toUpperCase() : '')
-                                .join()
-                            : 'E';
-
-                        final dateFormatted = DateFormat('dd-MM-yyyy (EEE)')
-                            .format(schedule.scheduleDate);
-
-                        return DataRow(
-                          cells: [
-                            // 1. NAME Cell
-                            DataCell(
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  CircleAvatar(
-                                    radius: 14,
-                                    backgroundColor: AppColors.forestMint,
-                                    child: Text(
-                                      initials,
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w700,
-                                        color: AppColors.primary,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Text(
-                                    schedule.engineerName,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 13,
-                                      color: AppColors.textPrimary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            // 2. DATE Cell
-                            DataCell(
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppColors.surfaceSilver,
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(
-                                    color: AppColors.silverLight,
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(
-                                      Icons.calendar_month_outlined,
-                                      size: 14,
-                                      color: AppColors.silverDark,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      dateFormatted,
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.textPrimary,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-
-                            // 3. SITE Cell
-                            DataCell(
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.local_gas_station_rounded,
-                                    size: 16,
-                                    color: AppColors.accentOrange,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  ConstrainedBox(
-                                    constraints: const BoxConstraints(
-                                      maxWidth: 220,
-                                    ),
-                                    child: Text(
-                                      schedule.siteName.toUpperCase(),
-                                      style: const TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w700,
-                                        color: AppColors.textPrimary,
-                                        letterSpacing: 0.3,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            // 4. ACTIONS Cell: EDIT & DELETE (Admin only)
-                            if (isAdmin)
-                              DataCell(
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    // Edit Button
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.edit_outlined,
-                                        size: 18,
-                                        color: AppColors.primary,
-                                      ),
-                                      tooltip: 'Edit Schedule',
-                                      visualDensity: VisualDensity.compact,
-                                      onPressed: () =>
-                                          _openEditSchedule(context, schedule),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    // Delete Button
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.delete_outline,
-                                        size: 18,
-                                        color: AppColors.error,
-                                      ),
-                                      tooltip: 'Delete Schedule',
-                                      visualDensity: VisualDensity.compact,
-                                      onPressed: () => _confirmDelete(
-                                        context,
-                                        schedule,
-                                        scheduleProvider,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                          ],
-                        );
-                      }).toList(),
+                        ),
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
+
+            // Quick Scroll Controls (Scroll to Top / Bottom) for fast navigation on web
+            if (schedules.length > 5)
+              Positioned(
+                right: 20,
+                bottom: 24,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_canScrollUp)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: FloatingActionButton.small(
+                          heroTag: 'btn_scroll_top_all_schedules',
+                          tooltip: 'Scroll to Top',
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          elevation: 3,
+                          onPressed: _scrollToTop,
+                          child: const Icon(Icons.arrow_upward_rounded, size: 18),
+                        ),
+                      ),
+                    if (_canScrollDown)
+                      FloatingActionButton.small(
+                        heroTag: 'btn_scroll_bottom_all_schedules',
+                        tooltip: 'Scroll to Bottom (View Full Data)',
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        elevation: 3,
+                        onPressed: _scrollToBottom,
+                        child: const Icon(Icons.arrow_downward_rounded, size: 18),
+                      ),
+                  ],
+                ),
+              ),
+          ],
         );
       },
     );
