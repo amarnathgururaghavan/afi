@@ -6,8 +6,10 @@ import 'package:provider/provider.dart';
 import 'package:screenshot/screenshot.dart';
 
 import 'package:engineer_schedule_app/providers/auth_provider.dart';
+import 'package:engineer_schedule_app/providers/maintenance_notes_provider.dart';
 import 'package:engineer_schedule_app/providers/schedule_provider.dart';
 import 'package:engineer_schedule_app/screens/dashboard/add_schedule_screen.dart';
+import 'package:engineer_schedule_app/screens/dashboard/maintenance_notes_screen.dart';
 import 'package:engineer_schedule_app/utils/constants.dart';
 import 'package:engineer_schedule_app/utils/file_saver.dart';
 import 'package:engineer_schedule_app/widgets/admin_menu_view.dart';
@@ -17,11 +19,12 @@ import 'package:engineer_schedule_app/widgets/monthly_view.dart';
 import 'package:engineer_schedule_app/widgets/my_zonal_view.dart';
 import 'package:engineer_schedule_app/widgets/weekly_view.dart';
 
-/// The 3 primary menus of the application:
+/// The 4 primary menus of the application:
 /// - Schedule (Weekly, Monthly, All)
+/// - Maintenance Notes (Site-wise complaints & status tracking)
 /// - My Zonal (Maintenance Complaints, Cash Checking)
 /// - Admin Menu (Users, Schedule Sites, Zonal Sites)
-enum MainMenu { schedule, myZonal, admin }
+enum MainMenu { schedule, maintenanceNotes, myZonal, admin }
 
 /// Sub-tabs for Menu: Schedule.
 enum ScheduleSubTab { weekly, monthly, all }
@@ -160,8 +163,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     return Consumer2<AuthProvider, ScheduleProvider>(
       builder: (context, auth, schedule, _) {
-        // Enforce role boundary: Field Engineers can ONLY access Schedule
-        if (!auth.isAdmin && _mainMenu != MainMenu.schedule) {
+        // Enforce role boundary: Field Engineers can access Schedule & Maintenance Notes
+        if (!auth.isAdmin &&
+            _mainMenu != MainMenu.schedule &&
+            _mainMenu != MainMenu.maintenanceNotes) {
           _mainMenu = MainMenu.schedule;
         }
 
@@ -253,8 +258,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                 padding: const EdgeInsets.all(6),
                 icon: const Icon(Icons.refresh, size: 22),
-                tooltip: 'Refresh Schedules',
-                onPressed: schedule.isLoading ? null : _loadSchedules,
+                tooltip: _mainMenu == MainMenu.maintenanceNotes
+                    ? 'Refresh Notes'
+                    : 'Refresh Schedules',
+                onPressed: () {
+                  if (_mainMenu == MainMenu.maintenanceNotes) {
+                    context.read<MaintenanceNotesProvider>().loadNotes();
+                  } else {
+                    if (!schedule.isLoading) _loadSchedules();
+                  }
+                },
               ),
               if (canShare)
                 IconButton(
@@ -414,6 +427,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ? 'Schedule • All Schedules'
                 : 'Schedule • My Schedules';
         }
+      case MainMenu.maintenanceNotes:
+        return 'Maintenance Notes • Site-wise Tracking';
       case MainMenu.myZonal:
         return 'My Zonal • Complaints & Cash Checking';
       case MainMenu.admin:
@@ -423,8 +438,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   /// Builds the main body content based on the selected Menu.
   Widget _buildBodyContent(AuthProvider auth, ScheduleProvider schedule) {
-    // Role protection
-    if (!auth.isAdmin && _mainMenu != MainMenu.schedule) {
+    // Role protection: Engineers can access Schedule and Maintenance Notes
+    if (!auth.isAdmin &&
+        _mainMenu != MainMenu.schedule &&
+        _mainMenu != MainMenu.maintenanceNotes) {
       _mainMenu = MainMenu.schedule;
     }
 
@@ -458,25 +475,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ],
         );
 
+      case MainMenu.maintenanceNotes:
+        return const MaintenanceNotesScreen(isEmbedded: true);
+
       case MainMenu.myZonal:
         if (auth.isAdmin) {
           return const MyZonalView();
         } else {
-          return Center(
+          return const Center(
             child: Padding(
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.all(24),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.store_mall_directory_outlined,
+                  Icon(Icons.store_mall_directory_outlined,
                       size: 64, color: AppColors.silverDark),
-                  const SizedBox(height: 16),
-                  const Text(
+                  SizedBox(height: 16),
+                  Text(
                     'Administrator Access Required',
                     style: AppTextStyles.heading3,
                   ),
-                  const SizedBox(height: 8),
-                  const Text(
+                  SizedBox(height: 8),
+                  Text(
                     'My Zonal is restricted to company administrators.\nPlease contact an administrator if you require access.',
                     style: AppTextStyles.bodySmall,
                     textAlign: TextAlign.center,
@@ -491,21 +511,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
         if (auth.isAdmin) {
           return const AdminMenuView();
         } else {
-          return Center(
+          return const Center(
             child: Padding(
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.all(24),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.admin_panel_settings_outlined,
+                  Icon(Icons.admin_panel_settings_outlined,
                       size: 64, color: AppColors.silverDark),
-                  const SizedBox(height: 16),
-                  const Text(
+                  SizedBox(height: 16),
+                  Text(
                     'Administrator Access Required',
                     style: AppTextStyles.heading3,
                   ),
-                  const SizedBox(height: 8),
-                  const Text(
+                  SizedBox(height: 8),
+                  Text(
                     'User Management is restricted to company administrators.\nPlease contact an administrator if you require access.',
                     style: AppTextStyles.bodySmall,
                     textAlign: TextAlign.center,
@@ -711,6 +731,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   onTap: () {
                     Navigator.of(context).pop();
                     setState(() => _mainMenu = MainMenu.schedule);
+                  },
+                ),
+
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  child: Divider(color: AppColors.silverLight),
+                ),
+
+                // ── MAINTENANCE NOTES ────────────────────────────────────────
+                const Padding(
+                  padding: EdgeInsets.only(left: 14, bottom: 4),
+                  child: Text(
+                    'MAINTENANCE NOTES',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.silverDark,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                ),
+                _buildDrawerItem(
+                  icon: Icons.assignment_outlined,
+                  title: 'Maintenance Notes',
+                  subtitle: 'Site-wise complaints & status tracking',
+                  isSelected: _mainMenu == MainMenu.maintenanceNotes,
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    setState(() => _mainMenu = MainMenu.maintenanceNotes);
                   },
                 ),
 

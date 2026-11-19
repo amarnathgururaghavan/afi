@@ -3,11 +3,13 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'providers/auth_provider.dart';
+import 'providers/maintenance_notes_provider.dart';
 import 'providers/schedule_provider.dart';
 import 'providers/zonal_provider.dart';
 import 'screens/auth/auth_wrapper.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/dashboard/dashboard_screen.dart';
+import 'screens/dashboard/maintenance_notes_screen.dart';
 import 'utils/constants.dart';
 
 Future<void> main() async {
@@ -32,6 +34,7 @@ class EngineerScheduleApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => ScheduleProvider()),
         ChangeNotifierProvider(create: (_) => ZonalProvider()),
+        ChangeNotifierProvider(create: (_) => MaintenanceNotesProvider()),
       ],
       child: MaterialApp(
         title: appName,
@@ -42,6 +45,7 @@ class EngineerScheduleApp extends StatelessWidget {
           '/': (_) => const AuthWrapper(),
           '/login': (_) => const LoginScreen(),
           '/dashboard': (_) => const DashboardScreen(),
+          '/maintenance-notes': (_) => const MaintenanceNotesScreen(),
         },
       ),
     );

@@ -169,6 +169,7 @@ class DbTables {
   static const String profiles = 'profiles';
   static const String schedules = 'schedules';
   static const String scheduleSites = 'schedule_sites';
+  static const String maintenanceNotes = 'maintenance_notes';
 }
 
 // ─── User Roles ───────────────────────────────────────────────────────────────
