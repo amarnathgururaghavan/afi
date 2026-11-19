@@ -306,9 +306,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           drawer: _buildDrawer(context, auth),
           body: _buildBodyContent(auth, schedule),
 
-          // Floating Action Button: Add Schedule (shown only in Schedule > All Schedules / My Schedules)
-          floatingActionButton: (_mainMenu == MainMenu.schedule &&
-                  _scheduleSubTab == ScheduleSubTab.all)
+          // Floating Action Button: Add Schedule (shown for both Engineers and Admins in Schedule menu)
+          floatingActionButton: _mainMenu == MainMenu.schedule
               ? FloatingActionButton.extended(
                   heroTag: 'fab_add_schedule_action',
                   onPressed: () async {

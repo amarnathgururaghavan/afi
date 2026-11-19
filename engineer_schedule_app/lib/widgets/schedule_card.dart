@@ -11,6 +11,7 @@ import '../utils/constants.dart';
 class ScheduleCard extends StatelessWidget {
   final ScheduleModel schedule;
   final bool isAdmin;
+  final bool canManage;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
 
@@ -18,6 +19,7 @@ class ScheduleCard extends StatelessWidget {
     super.key,
     required this.schedule,
     this.isAdmin = false,
+    this.canManage = false,
     this.onEdit,
     this.onDelete,
   });
@@ -148,8 +150,8 @@ class ScheduleCard extends StatelessWidget {
                       ),
                     ),
 
-                    // Admin popup menu
-                    if (isAdmin) ...[
+                    // Actions popup menu (Admin or Engineer for their own schedules)
+                    if (isAdmin || canManage || onEdit != null || onDelete != null) ...[
                       const SizedBox(width: AppSpacing.xs),
                       PopupMenuButton<_CardAction>(
                         icon: Icon(

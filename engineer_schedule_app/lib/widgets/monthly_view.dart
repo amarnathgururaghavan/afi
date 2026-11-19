@@ -4,16 +4,15 @@ import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../models/schedule_model.dart';
+import '../providers/auth_provider.dart';
 import '../providers/schedule_provider.dart';
+import '../screens/dashboard/add_schedule_screen.dart';
 import '../utils/constants.dart';
 import 'schedule_card.dart';
 
 /// Displays a full-month calendar grid using `table_calendar` with markers on
 /// dates that have scheduled work, and shows the selected date's schedules
 /// below the calendar.
-///
-/// NOTE: Per specification, Monthly View is purely view-only (no edit/delete).
-/// Edit and delete capabilities are exclusively available in the 'ALL' view.
 class MonthlyView extends StatefulWidget {
   const MonthlyView({super.key});
 
@@ -28,6 +27,65 @@ class _MonthlyViewState extends State<MonthlyView> {
   void initState() {
     super.initState();
     _selectedDay = context.read<ScheduleProvider>().focusedDate;
+  }
+
+  Future<void> _confirmDelete(
+    BuildContext context,
+    ScheduleModel schedule,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          side: const BorderSide(color: AppColors.silverLight),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: AppColors.error),
+            SizedBox(width: 8),
+            Text('Delete Schedule'),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to delete the schedule for '
+          '${schedule.engineerName} at ${schedule.siteName} on '
+          '${DateFormat('dd-MM-yyyy (EEE)').format(schedule.scheduleDate)}?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    final provider = context.read<ScheduleProvider>();
+    final success = await provider.deleteSchedule(schedule.id);
+    if (!context.mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success
+              ? 'Schedule deleted successfully'
+              : (provider.error ?? 'Failed to delete schedule'),
+        ),
+        backgroundColor: success ? AppColors.success : AppColors.error,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   @override
@@ -206,12 +264,26 @@ class _MonthlyViewState extends State<MonthlyView> {
                       const SizedBox(height: AppSpacing.xs),
                   itemBuilder: (context, index) {
                     final schedule = selectedSchedules[index];
-                    // Strict view-only: isAdmin: false disables edit/delete popups
+                    final auth = context.watch<AuthProvider>();
+                    final currentUserId = auth.currentUserId;
+                    final currentName = auth.profile?.fullName.trim().toLowerCase() ?? '';
+                    final canManage = auth.isAdmin ||
+                        (currentUserId.isNotEmpty && schedule.userId == currentUserId) ||
+                        (currentName.isNotEmpty && schedule.engineerName.trim().toLowerCase() == currentName);
+
                     return ScheduleCard(
                       schedule: schedule,
-                      isAdmin: false,
-                      onEdit: null,
-                      onDelete: null,
+                      isAdmin: auth.isAdmin,
+                      canManage: canManage,
+                      onEdit: canManage
+                          ? () => AddScheduleScreen.show(
+                                context,
+                                schedule: schedule,
+                              )
+                          : null,
+                      onDelete: canManage
+                          ? () => _confirmDelete(context, schedule)
+                          : null,
                     );
                   },
                 ),

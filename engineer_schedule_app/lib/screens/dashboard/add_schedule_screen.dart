@@ -62,6 +62,7 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
   String? _selectedSiteName;
   bool _isSaving = false;
   bool _isLoadingProfiles = true;
+  bool _autoAdvancedDate = false;
 
   List<ProfileModel> _profiles = [];
 
@@ -83,7 +84,8 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
   @override
   void initState() {
     super.initState();
-    _selectedDate = widget.initialDate ?? DateTime.now();
+    final initialDate = widget.initialDate ?? DateTime.now();
+    _selectedDate = DateTime(initialDate.year, initialDate.month, initialDate.day);
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final scheduleProvider =
@@ -91,6 +93,7 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
     final defaultSites = scheduleProvider.scheduleSites.isNotEmpty
         ? scheduleProvider.scheduleSites
         : kPredefinedSites;
+
     _selectedEngineerId = authProvider.currentUserId;
     _selectedEngineerName = authProvider.profile?.fullName.isNotEmpty == true
         ? authProvider.profile!.fullName
@@ -99,24 +102,36 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
     if (!_isEditing) {
       _selectedSiteName = defaultSites.first;
       _siteNameController.text = defaultSites.first;
+
+      // Auto next date rule: If initialDate is already booked for this user, auto-advance to next available date
+      if (scheduleProvider.hasScheduleOnDate(
+        date: _selectedDate,
+        engineerId: _selectedEngineerId,
+        engineerName: _selectedEngineerName,
+      )) {
+        _selectedDate = scheduleProvider.getNextAvailableDate(
+          startDate: _selectedDate,
+          engineerId: _selectedEngineerId,
+          engineerName: _selectedEngineerName,
+        );
+        _autoAdvancedDate = true;
+      }
+    } else {
+      // Pre-populate fields when editing for both Admin and Engineer
+      final s = widget.schedule!;
+      _selectedSiteName = s.siteName.trim().toUpperCase();
+      _siteNameController.text = _selectedSiteName!;
+      _selectedDate = DateTime(s.scheduleDate.year, s.scheduleDate.month, s.scheduleDate.day);
+      _selectedEngineerId = s.userId.isNotEmpty ? s.userId : authProvider.currentUserId;
+      _selectedEngineerName = s.engineerName.isNotEmpty
+          ? s.engineerName
+          : (authProvider.profile?.fullName ?? 'Engineer');
     }
 
     if (authProvider.isAdmin) {
       _loadProfiles();
     } else {
       _isLoadingProfiles = false;
-    }
-
-    // Pre-populate fields when editing.
-    if (_isEditing) {
-      final s = widget.schedule!;
-      _selectedSiteName = s.siteName.trim().toUpperCase();
-      _siteNameController.text = _selectedSiteName!;
-      _selectedDate = s.scheduleDate;
-      if (authProvider.isAdmin) {
-        _selectedEngineerId = s.userId;
-        _selectedEngineerName = s.engineerName;
-      }
     }
   }
 
@@ -155,7 +170,7 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
     }
   }
 
-  /// Opens the Material 3 date picker.
+  /// Opens the Material 3 date picker with automatic next-open-date validation.
   Future<void> _pickDate() async {
     final now = DateTime.now();
     final picked = await showDatePicker(
@@ -176,14 +191,63 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
         );
       },
     );
+
+    if (!mounted) return;
     if (picked != null) {
-      setState(() {
-        _selectedDate = picked;
-      });
+      final scheduleProvider =
+          Provider.of<ScheduleProvider>(context, listen: false);
+
+      final hasExisting = scheduleProvider.hasScheduleOnDate(
+        date: picked,
+        engineerId: _selectedEngineerId,
+        engineerName: _selectedEngineerName,
+        excludeScheduleId: widget.schedule?.id,
+      );
+
+      if (hasExisting) {
+        final existing = scheduleProvider.getScheduleOnDate(
+          date: picked,
+          engineerId: _selectedEngineerId,
+          engineerName: _selectedEngineerName,
+          excludeScheduleId: widget.schedule?.id,
+        );
+        final nextAvailable = scheduleProvider.getNextAvailableDate(
+          startDate: picked,
+          engineerId: _selectedEngineerId,
+          engineerName: _selectedEngineerName,
+          excludeScheduleId: widget.schedule?.id,
+        );
+
+        setState(() {
+          _selectedDate = nextAvailable;
+          _autoAdvancedDate = true;
+        });
+
+        if (mounted) {
+          final pickedStr = DateFormat('dd-MM-yyyy').format(picked);
+          final nextStr = DateFormat('dd-MM-yyyy (EEE)').format(nextAvailable);
+          final siteInfo = existing != null ? ' (${existing.siteName})' : '';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '1 site/day limit: $pickedStr already booked$siteInfo. Auto-selected next available date: $nextStr.',
+              ),
+              backgroundColor: AppColors.accentOrange,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      } else {
+        setState(() {
+          _selectedDate = picked;
+          _autoAdvancedDate = false;
+        });
+      }
     }
   }
 
-  /// Validates and saves the schedule.
+  /// Validates and saves the schedule. Enforces strictly 1 schedule site per day per user.
   Future<void> _handleSave() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -203,10 +267,36 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
       return;
     }
 
-    setState(() => _isSaving = true);
-
     final scheduleProvider =
         Provider.of<ScheduleProvider>(context, listen: false);
+
+    // Rule: Only one schedule site per day per user
+    if (scheduleProvider.hasScheduleOnDate(
+      date: _selectedDate,
+      engineerId: _selectedEngineerId,
+      engineerName: _selectedEngineerName,
+      excludeScheduleId: widget.schedule?.id,
+    )) {
+      final existing = scheduleProvider.getScheduleOnDate(
+        date: _selectedDate,
+        engineerId: _selectedEngineerId,
+        engineerName: _selectedEngineerName,
+        excludeScheduleId: widget.schedule?.id,
+      );
+      final siteInfo = existing != null ? ' (${existing.siteName})' : '';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Only one schedule site per day is allowed for this engineer. ${_dateFormat.format(_selectedDate)} already assigned$siteInfo.',
+          ),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isSaving = true);
 
     final siteName = (_selectedSiteName ?? _siteNameController.text).trim().toUpperCase();
 
@@ -518,11 +608,29 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
       onChanged: (value) {
         if (value == null) return;
         final selectedProfile = _profiles.firstWhere((p) => p.id == value);
+        final scheduleProvider =
+            Provider.of<ScheduleProvider>(context, listen: false);
+
         setState(() {
           _selectedEngineerId = value;
           _selectedEngineerName = selectedProfile.fullName.isNotEmpty
               ? selectedProfile.fullName
               : selectedProfile.email;
+
+          // Auto-advance if this engineer already has a schedule on _selectedDate
+          if (!_isEditing &&
+              scheduleProvider.hasScheduleOnDate(
+                date: _selectedDate,
+                engineerId: _selectedEngineerId,
+                engineerName: _selectedEngineerName,
+              )) {
+            _selectedDate = scheduleProvider.getNextAvailableDate(
+              startDate: _selectedDate,
+              engineerId: _selectedEngineerId,
+              engineerName: _selectedEngineerName,
+            );
+            _autoAdvancedDate = true;
+          }
         });
       },
       validator: (value) {
@@ -534,16 +642,27 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
     );
   }
 
-  /// Builds the date picker field as a tappable InputDecorator.
+  /// Builds the date picker field as a tappable InputDecorator with 1-site/day indicator.
   Widget _buildDatePicker() {
     return InkWell(
       onTap: _pickDate,
       borderRadius: BorderRadius.circular(AppRadius.sm),
       child: InputDecorator(
-        decoration: const InputDecoration(
+        decoration: InputDecoration(
           labelText: 'Schedule Date',
-          prefixIcon: Icon(Icons.calendar_today_outlined),
-          suffixIcon: Icon(Icons.arrow_drop_down),
+          prefixIcon: const Icon(Icons.calendar_today_outlined),
+          suffixIcon: const Icon(Icons.arrow_drop_down),
+          helperText: _autoAdvancedDate
+              ? 'Auto-selected next available open date'
+              : 'Only 1 schedule site per day allowed',
+          helperStyle: TextStyle(
+            color: _autoAdvancedDate
+                ? AppColors.primary
+                : AppColors.textSecondary,
+            fontWeight:
+                _autoAdvancedDate ? FontWeight.w700 : FontWeight.w500,
+            fontSize: 11.5,
+          ),
         ),
         child: Text(
           _dateFormat.format(_selectedDate),

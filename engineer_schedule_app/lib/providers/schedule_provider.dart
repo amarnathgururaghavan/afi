@@ -95,6 +95,94 @@ class ScheduleProvider extends ChangeNotifier {
     return sites;
   }
 
+  /// Checks if a schedule already exists for the given [engineerId] or [engineerName] on [date].
+  /// Ignores the schedule with [excludeScheduleId] (for editing).
+  bool hasScheduleOnDate({
+    required DateTime date,
+    String? engineerId,
+    String? engineerName,
+    String? excludeScheduleId,
+  }) {
+    final targetY = date.year;
+    final targetM = date.month;
+    final targetD = date.day;
+
+    return _schedules.any((s) {
+      if (excludeScheduleId != null && s.id == excludeScheduleId) {
+        return false;
+      }
+      final sDate = s.scheduleDate;
+      if (sDate.year != targetY || sDate.month != targetM || sDate.day != targetD) {
+        return false;
+      }
+
+      // Check match by user ID or engineer name
+      if (engineerId != null && engineerId.isNotEmpty && s.userId == engineerId) {
+        return true;
+      }
+      if (engineerName != null &&
+          engineerName.trim().isNotEmpty &&
+          s.engineerName.trim().toLowerCase() == engineerName.trim().toLowerCase()) {
+        return true;
+      }
+      return false;
+    });
+  }
+
+  /// Returns the existing schedule on [date] for [engineerId] or [engineerName], if any.
+  ScheduleModel? getScheduleOnDate({
+    required DateTime date,
+    String? engineerId,
+    String? engineerName,
+    String? excludeScheduleId,
+  }) {
+    final targetY = date.year;
+    final targetM = date.month;
+    final targetD = date.day;
+
+    for (final s in _schedules) {
+      if (excludeScheduleId != null && s.id == excludeScheduleId) continue;
+      final sDate = s.scheduleDate;
+      if (sDate.year != targetY || sDate.month != targetM || sDate.day != targetD) {
+        continue;
+      }
+      if (engineerId != null && engineerId.isNotEmpty && s.userId == engineerId) {
+        return s;
+      }
+      if (engineerName != null &&
+          engineerName.trim().isNotEmpty &&
+          s.engineerName.trim().toLowerCase() == engineerName.trim().toLowerCase()) {
+        return s;
+      }
+    }
+    return null;
+  }
+
+  /// Finds the next available date (starting from [startDate]) that does NOT already have
+  /// a schedule for the given [engineerId] / [engineerName].
+  DateTime getNextAvailableDate({
+    required DateTime startDate,
+    String? engineerId,
+    String? engineerName,
+    String? excludeScheduleId,
+  }) {
+    DateTime candidate = DateTime(startDate.year, startDate.month, startDate.day);
+    int iterations = 0;
+    while (iterations < 365) {
+      if (!hasScheduleOnDate(
+        date: candidate,
+        engineerId: engineerId,
+        engineerName: engineerName,
+        excludeScheduleId: excludeScheduleId,
+      )) {
+        return candidate;
+      }
+      candidate = candidate.add(const Duration(days: 1));
+      iterations++;
+    }
+    return candidate;
+  }
+
   // ── Load methods ─────────────────────────────────────────────────────────
 
   /// Loads schedules. Admins get all schedules; regular users get only their
